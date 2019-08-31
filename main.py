@@ -21,8 +21,6 @@ import datetime
 from tankModelCalculator import TankModelCalculator
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from paramOptimizer import ParamOptimizer
 from kalmanCalculator import KalmanCalculator
 from scipy.optimize import differential_evolution
@@ -163,7 +161,62 @@ if __name__ == '__main__':
 
     # 図の出力
     # ----------------------------------------
-    graphMaker = graphMaker(allDataDF)
+    graphMaker = GraphMaker(allDataDF)
+    if cal_settings["used_algorithm"] == "de":
+        if cal_settings["used_flowModel"] == "classicOneValueStorageFunc":
+            savePath = outputFilePath + \
+                       "differential_evolution/oneValueStorageFunction/"
+        elif cal_settings["used_flowModel"] == "classicTwoValueStorageFunc":
+            savePath = outputFilePath + \
+                       "differential_evolution/twoValueStorageFunction/"
+        elif cal_settings["used_flowModel"] == "twoStepTwoValueStorageFunc":
+            savePath = outputFilePath + \
+                       "differential_evolution/twoStepTankStorageFunction/"
+        elif cal_settings["used_flowModel"] == "tankModel":
+            savePath = outputFilePath + "differential_evolution/tankModel/"
+    elif cal_settings["used_algorithm"] == "kalmanFilter":
+        savePath = outputFilePath + "kalmanFilter/"
+    xTickList = [cal_settings["startTime"], cal_settings["endTime"],
+                 cal_settings["timescale"]]
+    xLabel = "Date"
+
+    # flow rate - date
+    yNameList = ["flow rate(HQ)", "flow rate(cal)", "rainfall"]
+    yLabelList = ["Flow rate (m$^3$/s)", "Rainfall (mm/hr)"]
+    outputFileName = cal_settings["riverName"] + "_" + \
+        cal_settings["used_flowModel"] + "_" + \
+        cal_settings["used_algorithm"] + "_" + \
+        cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["timeInterval"] + \
+        cal_settings["timescale"] + "_" + "FR.png"
+    graphMaker.makeFlowRateGraph(yNameList, xTickList, xLabel, yLabelList)
+    graphMaker.save(outputFileName, savePath)
+
+    # water level - date
+    yNameList = ["water level(obs)", "water level(cal)", "rainfall"]
+    yLabelList = ["Water lebel (m)", "Rainfall (mm/hr)"]
+    outputFileName = cal_settings["riverName"] + "_" + \
+        cal_settings["used_flowModel"] + "_" + \
+        cal_settings["used_algorithm"] + "_" + \
+        cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["timeInterval"] + \
+        cal_settings["timescale"] + "_" + "WL.png"
+    graphMaker.makeWaterLevelGraph(yNameList, xTickList, xLabel, yLabelList)
+    graphMaker.save(outputFileName, savePath)
+
+    # flow rate - storage height
+    xName = "flow rate(cal)"
+    yName = "storage height"
+    xLabel = "Flow rate (m$^3$/s)"
+    yLabel = "storage height(mm)"
+    outputFileName = cal_settings["riverName"] + "_" + \
+        cal_settings["used_flowModel"] + "_" + \
+        cal_settings["used_algorithm"] + "_" + \
+        cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["timeInterval"] + \
+        cal_settings["timescale"] + "_" + "FS.png"
+    graphMaker.makeFlow_StorageRelation(xName, yName, xLabel, yLabel)
+    graphMaker.save(outputFileName, savePath)
 
     elapsedTime = (datetime.datetime.now() - startCalTime).total_seconds()
     print(f"##################")
