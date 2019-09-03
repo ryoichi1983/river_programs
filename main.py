@@ -107,9 +107,9 @@ if __name__ == '__main__':
                                           cal_settings["catchmentArea"],
                                           tankModel_settings)
         bounds = paramOptimizer.getBounds()
-        result = differential_evolution(paramOptimizer.searchingFunc, bounds)
+        result = differential_evolution(paramOptimizer.searchFunc, bounds)
         # 最適化されたパラメータを用いた流出モデルの計算
-        # modelError = paramOptimizer.searchingFunc(result["x"])
+        # modelError = paramOptimizer.searchFunc(result["x"])
 
     # 結果の整理
     # ----------------------------------------

@@ -9,21 +9,13 @@ Created on Tue Jun 25 13:16:00 2019
 import numpy as np
 from objectivefunctions import rmse
 from objectivefunctions import nashsutcliffe
-from objectivefunctions import chi
 from tankModelCalculator import TankModelCalculator
-import datetime
 from storageFuncs import classicOneValueStorageFunc
 from storageFuncs import classicTwoValueStorageFunc
 from storageFuncs import twoStepTwoValueStorageFunc
-from scipy import linalg
-from scipy.integrate import odeint
 from scipy.integrate import ode
-from filterpy.kalman import KalmanFilter
-from numpy import sqrt
 from filterpy.common import Q_discrete_white_noise
-import matplotlib.pyplot as plt
 from filterpy.common import Q_continuous_white_noise
-import statistics
 
 
 class ParamOptimizer:
@@ -55,10 +47,6 @@ class ParamOptimizer:
         self.endTime = calc_settings["endTime"]
         self.timescale = calc_settings["timescale"]
         self.timeInterval = calc_settings["timeInterval"]
-        self.floodStartTime = calc_settings["floodStartTime"]
-        self.floodEndTime = calc_settings["floodEndTime"]
-        self.rainfallStartTime = calc_settings["rainfallStartTime"]
-        self.rainfallEndTime = calc_settings["rainfallEndTime"]
 
     def calculateObjfunction(self, simulation, evaluation):
         """
@@ -146,7 +134,7 @@ class ParamOptimizer:
     def getOutputData(self):
         return self.outputList
     
-    def searchingFunc(self, x):
+    def searchFunc(self, x):
         """
         function for the global minimization
         ----
@@ -164,16 +152,12 @@ class ParamOptimizer:
         # ----------------------------------------
         if self.used_flowModel == "tankModel":
             evaluationList = []
-            # evaluationList = list(self.readDataDF["flow rate(HQ)"])
             self.setTankParams(x)
             tankModelCalculator = TankModelCalculator(**self.tankModel_settings)
-            timestamp = self.rainfallStartTime
-            # timestamp = self.startTime
-            while timestamp <= self.floodEndTime:
-            # while timestamp < self.endTime:
+            timestamp = self.startTime
+            while timestamp <= self.endTime:
                 gridTime = self.readDataDF.loc[timestamp, "grid time"]  # timedelta 型
                 dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型
-                # gridTime = self.readDataDF.loc[timestamp, "grid time"]
                 rainfall = self.readDataDF.loc[timestamp, "rainfall"]
                 self.outputList.append(tankModelCalculator.calculateTank(dt, rainfall))
                 flowRate = self.outputList[-1][4] * self.catchmentArea / 3.6
@@ -181,18 +165,13 @@ class ParamOptimizer:
                                                 [timestamp, flowRate, rainfall])
                 simulationList.append(flowRate)
                 evaluationList.append(self.readDataDF.loc[timestamp, "flow rate(HQ)"])
-                # timestamp += eval("datetime.timedelta(" +
-                #                   self.timescale + "=" + str(int(gridTime)) + ")")
                 timestamp += gridTime
-            # simulationList.append(np.nan)
             return self.calculateObjfunction(simulationList, evaluationList)
 
         # 古典的一価非線形貯留関数の場合
         # ----------------------------------------
         elif self.used_flowModel == "classicOneValueStorageFunc":
             evaluationList = []
-            # evaluationList = list(self.readDataDF["flow rate(HQ)"].loc[
-                # self.rainfallStartTime: self.floodEndTime])
             sol = ode(classicOneValueStorageFunc)
             sol.set_integrator("dop853")
             y0, t0 = 0, 0
@@ -200,64 +179,68 @@ class ParamOptimizer:
             # timestamp = self.rainfallStartTime
             timestamp = self.startTime
             a, p = x[0], x[1]
-            while sol.successful() and timestamp <= self.endTime:
+            # while sol.successful() and timestamp <= self.endTime:
+            while timestamp <= self.endTime:
                 gridTime = self.readDataDF.loc[timestamp, "grid time"]
                 dt = gridTime.days * 24 + gridTime.seconds / 3600
                 rainfall = self.readDataDF.loc[timestamp, "effective rainfall"]
                 sol.set_f_params(a, p, rainfall)
                 integrateResultList = sol.integrate(sol.t+dt)
-                # 差分計算の出力 (リストNo.0 が求めたい量であることに注意)
                 flowRate = (integrateResultList[0])**(1/p) * self.catchmentArea / 3.6
                 storageHeight = a * integrateResultList[0]
+                if storageHeight < 0:
+                    return np.inf
                 self.outputList.append([timestamp, flowRate, rainfall, storageHeight])
                 simulationList.append(flowRate)
                 evaluationList.append(self.readDataDF.loc[timestamp, "flow rate(HQ)"])
                 timestamp += gridTime
+            return self.calculateObjfunction(simulationList, evaluationList)
+            """
             if sol.successful():
                 return self.calculateObjfunction(simulationList, evaluationList)
             else:
                 print("## INTEGRATION ERROR ##")
-                return 10**10  # 誤差の上限値(根拠なし)
+                # return "error"
+                return 10**20  # 誤差の上限値(根拠なし)
+            """
 
         # 古典的二価非線形貯留関数の場合
         # ----------------------------------------
         elif self.used_flowModel == "classicTwoValueStorageFunc":
             evaluationList = []
-            # evaluationList = list(self.readDataDF["flow rate(HQ)"].loc[
-                # self.rainfallStartTime: self.floodEndTime])
             sol = ode(classicTwoValueStorageFunc)
             sol.set_integrator("dop853")
             y0 = [0, 0]  # (x, y)
             t0 = 0
             sol.set_initial_value(y=y0, t=t0)
-            timestamp = self.rainfallStartTime
-            # timestamp = self.startTime
+            timestamp = self.startTime
             a, b, m, n = x[0], x[1], x[2], x[3]
-            # while timestamp <= self.floodEndTime:
-            while sol.successful() and timestamp <= self.floodEndTime:
-            # while sol.successful() and sol.t < len(self.readDataDF)-1:
+            while timestamp <= self.endTime:
+            # while sol.successful() and timestamp <= self.endTime:
                 gridTime = self.readDataDF.loc[timestamp, "grid time"]  # timedelta 型
                 dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型(時間)
-                # gridTime = self.readDataDF.loc[timestamp, "grid time"]
                 rainfall = self.readDataDF.loc[timestamp, "effective rainfall"]
                 sol.set_f_params(a, b, m, n, rainfall)
                 integrateResultList = sol.integrate(sol.t+dt)
-                # 差分計算の出力 (リストNo.0 が求めたい量であることに注意)
                 flowRate = (integrateResultList[0])**(1/n) * self.catchmentArea / 3.6
                 storageHeight = a * integrateResultList[0]**(m/n) + \
                                 b * integrateResultList[1]
+                if storageHeight < 0:
+                    return np.inf
+                # if not sol.successful():
+                    # return np.inf
                 self.outputList.append([timestamp, flowRate, rainfall, storageHeight])
                 simulationList.append(flowRate)
                 evaluationList.append(self.readDataDF.loc[timestamp, "flow rate(HQ)"])
-                # timestamp += eval("datetime.timedelta(" +
-                #                   self.timescale + "=" + str(int(gridTime)) + ")")
                 timestamp += gridTime
-            # simulationList.append(np.nan)
+            return self.calculateObjfunction(simulationList, evaluationList)
+            """
             if sol.successful():
                 return self.calculateObjfunction(simulationList, evaluationList)
             else:
                 print("## INTEGRATION ERROR ##")
-                return 10**10  # 誤差の上限値(根拠なし)
+                return np.inf
+            """
 
         # 二段タンク型二価非線形貯留関数の場合
         # ----------------------------------------
@@ -270,8 +253,7 @@ class ParamOptimizer:
             y0 = [0, 0, 0, 0]  # (y1, y2, y3, y4)
             t0 = 0
             sol.set_initial_value(y=y0, t=t0)
-            timestamp = self.rainfallStartTime
-            # timestamp = self.startTime
+            timestamp = self.startTime
             k11 = x[0]
             k12 = x[1]
             k13 = x[2]
@@ -279,9 +261,8 @@ class ParamOptimizer:
             k22 = x[4]
             p1 = x[5]
             p2 = x[6]
-            # while timestamp <= self.floodEndTime:
-            while sol.successful() and timestamp <= self.floodEndTime:
-            # while sol.successful() and sol.t < len(self.readDataDF)-1:
+            while timestamp <= self.endTime:
+            # while sol.successful() and timestamp <= self.endTime:
                 gridTime = self.readDataDF.loc[timestamp, "grid time"]  # timedelta 型
                 dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型
                 # gridTime = self.readDataDF.loc[timestamp, "grid time"]
@@ -297,18 +278,20 @@ class ParamOptimizer:
                                 k12 * integrateResultList[1] + \
                                 k21 * integrateResultList[2] + \
                                 k22 * integrateResultList[3]
+                if storageHeight < 0:
+                    return np.inf
                 self.outputList.append([timestamp, flowRate, rainfall, storageHeight])
                 simulationList.append(flowRate)
                 evaluationList.append(self.readDataDF.loc[timestamp, "flow rate(HQ)"])
                 timestamp += gridTime
-                # timestamp += eval("datetime.timedelta(" +
-                #                   self.timescale + "=" + str(int(gridTime)) + ")")
-            # simulationList.append(np.nan)
+            return self.calculateObjfunction(simulationList, evaluationList)
+            """
             if sol.successful():
                 return self.calculateObjfunction(simulationList, evaluationList)
             else:
                 print("## INTEGRATION ERROR ##")
                 return 10**10  # 誤差の上限値(根拠なし)
+            """
 
     def getBounds(self):
         """
@@ -322,9 +305,9 @@ class ParamOptimizer:
             return [(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 10), 
                     (0, 10), (0, 1000), (0, 1000), (0, 1000), (0, 1000)]
         elif self.used_flowModel == "classicOneValueStorageFunc":
-            return [(0, 20), (0, 20)]
+            return [(0, 10), (0, 1.5)]
         elif self.used_flowModel == "classicTwoValueStorageFunc":
-            return [(0, 20), (0, 20), (0, 20), (0, 20)]
+            return [(0, 10), (0, 10), (0, 1), (0, 1)]
         elif self.used_flowModel == "twoStepTwoValueStorageFunc":
-            return [(0, 20), (0, 20), (0, 20), (0, 20), (0, 20), (0, 2), (0, 2)]
+            return [(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 1), (0, 1)]
 

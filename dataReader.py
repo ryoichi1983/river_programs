@@ -106,18 +106,20 @@ class DataReader(object):
         """
         timestamp = startTime
         dateList = [startTime]
-        gridTimeList = []
         if timescale == "hours":
             dataNum = int((endTime - startTime).
                           total_seconds()/3600/int(timeInterval) + 1)
+            gridTimeList = [datetime.timedelta(hours=1)]
         elif timescale == "minutes":
             dataNum = int((endTime - startTime).
                           total_seconds()/60/int(timeInterval) + 1)
+            gridTimeList = [datetime.timedelta(minutes=10)]
+        # for i in range(dataNum-1):
         for i in range(dataNum-1):
             timestamp += eval("datetime.timedelta(" + timescale + "=" + timeInterval + ")")
             dateList.append(timestamp)
             gridTimeList.append(timestamp - dateList[i])
-        gridTimeList.append(np.nan)
+        # gridTimeList.append(np.nan)
         self.allDataDF["grid time"] = gridTimeList
         self.allDataDF.index = dateList
         # pList = []
