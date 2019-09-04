@@ -190,7 +190,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FR.png"
     graphMaker.makeFlowRateGraph(yNameList, xTickList, xLabel, yLabelList)
-    graphMaker.save(outputFileName, savePath)
+    # graphMaker.save(outputFileName, savePath)
 
     # water level - date
     yNameList = ["water level(obs)", "water level(cal)", "rainfall"]
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "WL.png"
     graphMaker.makeWaterLevelGraph(yNameList, xTickList, xLabel, yLabelList)
-    graphMaker.save(outputFileName, savePath)
+    # graphMaker.save(outputFileName, savePath)
 
     # flow rate - storage height
     xName = "flow rate(cal)"
@@ -216,7 +216,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FS.png"
     graphMaker.makeFlow_StorageRelation(xName, yName, xLabel, yLabel)
-    graphMaker.save(outputFileName, savePath)
+    # graphMaker.save(outputFileName, savePath)
 
     elapsedTime = (datetime.datetime.now() - startCalTime).total_seconds()
     print(f"##################")
