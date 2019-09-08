@@ -107,6 +107,7 @@ class GraphMaker(object):
         ax.set_xlabel("x", size = 9)
         ax.set_ylabel("y", size = 9)
         ax.set_zlabel("z", size = 9)
+        ax.set_zlim([7, 8.8])
         # ax.set_xlim([-1.5, 1.5])
         # ax.set_ylim([-1.5, 1.5])
 
