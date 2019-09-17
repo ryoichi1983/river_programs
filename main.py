@@ -132,6 +132,7 @@ if __name__ == '__main__':
         outputDF.loc[outputDF["flow rate"] > HQParams[2]["Q_max"], "water level"] = np.nan
         allDataDF["flow rate(cal)"] = outputDF["flow rate"]
         allDataDF["water level(cal)"] = outputDF["water level"]
+        allDataDF["storage height"] = outputDF["storage height"]
         return outputDF
 
     outputFilePath = dataReader.getOutputFilePath()
@@ -143,21 +144,17 @@ if __name__ == '__main__':
                           "leakage1", "leakage2", "leakage3", "Date",
                           "flow rate", "rainfall"]
             outputDF = summarizeResults(headerList)
-            allDataDF["storage height"] = outputDF["storage height"]
         elif cal_settings["used_flowModel"] == "classicOneValueStorageFunc" or \
             cal_settings["used_flowModel"] == "classicTwoValueStorageFunc":
             headerList = ["Date", "flow rate", "rainfall", "storage height"]
             outputDF = summarizeResults(headerList)
-            allDataDF["storage height"] = outputDF["storage height"]
         elif cal_settings["used_flowModel"] == "twoStepTwoValueStorageFunc":
             headerList = ["Date", "flow rate", "rainfall", "storage height"]
             outputDF = summarizeResults(headerList)
-            allDataDF["storage height"] = outputDF["storage height"]
     elif cal_settings["used_algorithm"] == "kalmanFilter":
         outputList = kalmanCalculator.getOutputData()
-        headerList = ["Date", "flow rate", "rainfall", "flow rate error"]
+        headerList = ["Date", "flow rate", "rainfall", "flow rate error", "storage height"]
         outputDF = summarizeResults(headerList)
-        # allDataDF["storage height"] = outputDF["storage height"]
 
     # 図の出力
     # ----------------------------------------

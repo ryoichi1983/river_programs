@@ -159,9 +159,10 @@ class KalmanCalculator:
         meanRainfall = 0
         kalman = KalmanFilter(dim_x=self.dim_x, dim_z=self.dim_z, dim_u=self.dim_u)
         # 降雨開始時刻(初期時刻)
-        timestamp = self.rainfallStartTime
+        timestamp = self.startTime
         # 初期雨量
         rainfallList = [self.readOnlyDataDF.loc[timestamp, "rainfall"]]
+        rainfallList = [rainfall + 10**-10 for rainfall in rainfallList]
         # 初期観測量 (流量、雨量)
         measurableList = [[
             self.readOnlyDataDF.loc[timestamp, "flow rate(HQ)"]**self.p2 + 10**-10,
@@ -234,16 +235,17 @@ class KalmanCalculator:
                 self.kalman_xList[-1][0][0]**(1/self.p2 - 1) * \
                 self.kalman_PList[0][0][0]**0.5
             # sigma_WL = sigma_flow / (4 * flowRate)  要修正
+            storageHeight = k11 * flowRate**self.p1 + k12 * self.kalman_xList[-1][1][0]
             self.outputList.append([timestamp, flowRate, rainfallList[-1], 
-                                    errorFlowRate])
+                                    errorFlowRate, storageHeight])
             self.kalman_xList.append(kalman.x)
             self.kalman_PList.append(kalman.P)
             self.kalmanVarianceList.append(np.diag(kalman.P))
             timestamp += gridTime
         # time = [i for i in range(len(kalman_xList))]
-        # kalman_xList = np.array(kalman_xList).reshape(25,5)
+        # kalman_xList = np.array(kalman_xList).reshape(25, 5)
         # plt.plot(time, kalman_xList)
-        self.forecast(kalman)
+        # self.forecast(kalman)
 
     def forecast(self, kalman, obsDateTime=None, forecastTime=None):
         """
@@ -256,10 +258,10 @@ class KalmanCalculator:
             obsDateTime = self.obsDateTime
         if forecastTime is None:
             forecastTime = self.forecastTime
-        dataReader = DataReader()
-        dataReader.setInputFilePath()
-        grib2_settings = dataReader.getGrib2Params()
-        rainfallGPVDF = dataReader.getRainfallGPV(obsDateTime)
+        dataReader_kal = DataReader()
+        dataReader_kal.setInputFilePath()
+        grib2_settings = dataReader_kal.getGrib2Params()
+        rainfallGPVDF = dataReader_kal.getRainfallGPV(obsDateTime)
         forecastDateTime = obsDateTime + \
             eval("datetime.timedelta(" + self.timescale + "=" + self.forecastTime + ")")
         gridTime = eval("datetime.timedelta(" + self.timescale + "=" + self.timeInterval + ")")
