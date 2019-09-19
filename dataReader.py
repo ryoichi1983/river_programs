@@ -315,10 +315,12 @@ class DataReader(object):
                 skipinitialspace=True, usecols=[0, 2], index_col=0)
             inputDF.index = pd.to_datetime(inputDF.index)
             inputDF.columns = ["rainfall"]
-            self.allDataDF = pd.concat([self.allDataDF, inputDF/10*6],
-                                       axis=1)
+            self.allDataDF = pd.concat([self.allDataDF, inputDF/10*6], axis=1,
+                                       join_axes=[self.allDataDF.index])
+            # self.allDataDF = pd.concat([self.allDataDF, inputDF/10*6],
+                                       # axis=1)
 
-    def getRainfallGPV(self, dateTime=None):
+    def getRainfallGPV(self, forecastTime, dateTime=None):
         if dateTime is None:
             dateTime = self.obsDateTime
         grib2_settings = self.getGrib2Params()
@@ -328,7 +330,7 @@ class DataReader(object):
         # grib2 データから抽出された所望の気象データが格納されたファイル名
         tmpFileName = "tmpfile.csv"
 
-            # grib2 データの情報を表示するためのオプションをリストとして格納します。
+        # grib2 データの情報を表示するためのオプションをリストとして格納します。
         # -V : データの詳細情報を出力するオプションです。
         # -match: そのあとに続く文字列によって切り出し、情報を制約します。
         parameterList = ["-match", "APCP"]
@@ -340,10 +342,11 @@ class DataReader(object):
         print("******************************************************")
         grib2Reader.showInformation(grib2FileName, parameterList)
         gpvDF = pd.DataFrame()
-        # 参照番号に対応した所望の気象データを1時間ごとに15時間分取得するた
-        # めにループを繰り返します。
-        # 雨量データの取得
-        for num in range(21, 176, 11):
+        gpvIndexInterval = 11  # 予測雨量の参照番号の間隔
+        initialNum = 21  # 予測雨量の初期参照番号
+        endNum = (forecastTime - 1) * gpvIndexInterval + initialNum  # 予測雨量の終了参照番号
+        # 参照番号に対応した所望の気象データを１時間ごとに取得するためにループを繰り返します。
+        for num in range(initialNum, endNum+1, gpvIndexInterval):
             grib2Num = "1." + str(num)
             # 参照番号を用いて気象データを抽出し、それを csv 形式で保存します。
             print("saving file: {}...".format(tmpFileName))
@@ -406,4 +409,6 @@ class DataReader(object):
                 skipinitialspace=True, usecols=[0, 2], index_col=0)
             inputDF.index = pd.to_datetime(inputDF.index)
             inputDF.columns = ["water level(obs)"]
-            self.allDataDF = pd.concat([self.allDataDF, inputDF/1000], axis=1)
+            # self.allDataDF = pd.concat([self.allDataDF, inputDF/1000], axis=1)
+            self.allDataDF = pd.concat([self.allDataDF, inputDF/1000], axis=1,
+                                       join_axes=[self.allDataDF.index])
