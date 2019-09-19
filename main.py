@@ -107,9 +107,17 @@ if __name__ == '__main__':
                                           cal_settings["catchmentArea"],
                                           tankModel_settings)
         bounds = paramOptimizer.getBounds()
-        result = differential_evolution(paramOptimizer.searchFunc, bounds)
+        resultTuple = differential_evolution(paramOptimizer.searchFunc, bounds)
+        result = resultTuple[0]
+        populationList = resultTuple[1]
+        population_energyList = resultTuple[2]
         # 最適化されたパラメータを用いた流出モデルの計算
         # modelError = paramOptimizer.searchFunc(result["x"])
+
+    # アニメーションの作成
+    # ----------------------------------------
+    # graphMaker = GraphMaker()
+    # graphMaker.makeAnimation(populationList, population_energyList)
 
     # 結果の整理
     # ----------------------------------------

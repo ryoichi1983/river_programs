@@ -10,19 +10,26 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
+import random
+import math
+from matplotlib import animation
+from mpl_toolkits.mplot3d import Axes3D
 
 class GraphMaker(object):
     """
     class for making and saving the graph
     """
-    def __init__(self, allDataDF):
+    def __init__(self, allDataDF=None):
         """
         ----
         Input
         ----
         allDataDF: DataFrame
         """
-        self.allDataDF = allDataDF
+        if allDataDF is not None:
+            self.allDataDF = allDataDF
+        else:
+            self.allDataDF = []
 
     def makeFlowRateGraph(self, yNameList, xTickList, xLabel, yLabelList):
         fig, ax = plt.subplots(figsize=(4.86, 3))
@@ -93,6 +100,69 @@ class GraphMaker(object):
         ax.set_xlabel(xLabel, size=9)
         ax.set_ylabel(yLabel, size=9)
         ax.tick_params(direction="in", labelsize=9)
+
+    def makeAnimation(self, populationList, population_energyList):
+        fig =  plt.figure(figsize=(4.86, 3))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlabel("x", size = 9)
+        ax.set_ylabel("y", size = 9)
+        ax.set_zlabel("z", size = 9)
+        ax.set_zlim([7, 8.8])
+        # ax.set_xlim([-1.5, 1.5])
+        # ax.set_ylim([-1.5, 1.5])
+
+        images = []
+        for populations, z in zip(populationList, population_energyList):
+            x, y = [], []
+            for xy in populations:
+                x.append(xy[0])
+                y.append(xy[1])
+            # for xy, z in zip(populations, population_energies):
+                # image = ax.scatter(xy[0], xy[1], z)
+                # images.append([image])
+            x = np.array(x)
+            y = np.array(y)
+            z = z.flatten()
+            image = ax.scatter(x, y, z)
+            images.append([image])
+        ani = animation.ArtistAnimation(fig, 
+                                        images, 
+                                        blit=True, 
+                                        repeat=False,
+                                        interval=500)
+        ani.save("./results/output.gif", writer="imagemagick")
+        plt.show()
+
+
+if __name__ == '__main__':
+    """
+    # 更新する内容
+    def _update_plot(i, fig, im):
+        rad = math.radians(i)
+
+        # 前回のフレーム内容を一旦削除
+        if len(im) > 0:
+            im[0].remove()
+            im.pop()
+
+        im.append(plt.scatter(math.cos(rad), math.sin(rad)))
+    fig =  plt.figure()
+
+    # グラフを中央に表示
+    ax = fig.add_subplot(1,1,1)
+
+    # グラフの目盛範囲設定
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.5, 1.5])
+
+    im = [] # フレーム更新の際に前回のプロットを削除するために用意
+
+    """
+    graphMaker = GraphMaker()
+    graphMaker.makeAnimation()
+
+    # 表示
+    #plt.show()
 
     """
     fig, ax = plt.subplots(figsize=(4.86, 3))
