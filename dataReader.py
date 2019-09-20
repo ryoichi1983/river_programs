@@ -88,9 +88,6 @@ class DataReader(object):
              "floodEndTime": datetime.datetime.strptime(
                  self.inifile.get("riverParameters", "floodEndTime"),
                  "%Y/%m/%d %H:%M:%S"),  # 氾濫終了時刻
-             "obsDateTime": datetime.datetime.strptime(
-                 self.inifile.get("riverParameters", "obsDateTime"),
-                 "%Y/%m/%d %H:%M:%S"),  # 観測時刻
              "riverName": self.inifile.get("riverParameters", "riverName"),
              "forecastTime": self.inifile.get("riverParameters", "forecastTime"),
              }
@@ -322,7 +319,9 @@ class DataReader(object):
 
     def getRainfallGPV(self, forecastTime, dateTime=None):
         if dateTime is None:
-            dateTime = self.obsDateTime
+            dateTime = self.endTime
+        if dateTime.hour % 3 != 0:
+            raise ValueError("the hour of endTime variables must be a multiple of 3")
         grib2_settings = self.getGrib2Params()
         grib2Reader = Grib2Reader(self.inputFilePath)
         grib2FileName = "Z__C_RJTD_" + dateTime.strftime("%Y%m%d%H%M%S") + \

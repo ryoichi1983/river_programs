@@ -15,8 +15,8 @@ import sys
 import spotpy
 #from spotpy import examples
 #from spotpy.examples importp spot_setup_rosenbrock
-from spotpy.examples.spot_setup_rosenbrock import spot_setup
-from spotpy import analyser
+#from spotpy.examples.spot_setup_rosenbrock import spot_setup
+#from spotpy import analyser
 import datetime
 from tankModelCalculator import TankModelCalculator
 import pandas as pd
@@ -108,9 +108,9 @@ if __name__ == '__main__':
                                           tankModel_settings)
         bounds = paramOptimizer.getBounds()
         resultTuple = differential_evolution(paramOptimizer.searchFunc, bounds)
-        result = resultTuple[0]
-        populationList = resultTuple[1]
-        population_energyList = resultTuple[2]
+        #result = resultTuple[0]
+        #populationList = resultTuple[1]
+        #population_energyList = resultTuple[2]
         # 最適化されたパラメータを用いた流出モデルの計算
         # modelError = paramOptimizer.searchFunc(result["x"])
 
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # 結果の整理
     # ----------------------------------------
-    def summarizeResults(headerList):
+    def summarizeResults(headerList, allDataDF, outputList, cal_settings):
         outputDF = pd.DataFrame(outputList, columns=headerList)
         outputDF = outputDF.set_index("Date")
         outputDF.loc[outputDF["flow rate"] < HQParams[0]["Q_min"],
@@ -138,10 +138,13 @@ if __name__ == '__main__':
                      (outputDF["flow rate"] < HQParams[2]["Q_max"]), "water level"] =\
                       HQParams[2]["b"] + (outputDF["flow rate"]/HQParams[2]["a"])**0.5
         outputDF.loc[outputDF["flow rate"] > HQParams[2]["Q_max"], "water level"] = np.nan
+        allDataDF = pd.concat([allDataDF, outputDF["storage height"]], axis=1)
         allDataDF["flow rate(cal)"] = outputDF["flow rate"]
         allDataDF["water level(cal)"] = outputDF["water level"]
-        allDataDF["storage height"] = outputDF["storage height"]
-        return outputDF
+        if cal_settings["used_algorithm"] == "kalmanFilter":
+            allDataDF["flow rate error"] = outputDF["flow rate error"]
+            allDataDF["rainfall"] = outputDF["rainfall"]
+        return allDataDF
 
     outputFilePath = dataReader.getOutputFilePath()
     if cal_settings["used_algorithm"] == "de":
@@ -151,22 +154,25 @@ if __name__ == '__main__':
                           "flow height1", "flow height2", "flow height3",
                           "leakage1", "leakage2", "leakage3", "Date",
                           "flow rate", "rainfall"]
-            outputDF = summarizeResults(headerList)
+            allDataDF = summarizeResults(headerList, allDataDF, outputList, cal_settings)
         elif cal_settings["used_flowModel"] == "classicOneValueStorageFunc" or \
             cal_settings["used_flowModel"] == "classicTwoValueStorageFunc":
             headerList = ["Date", "flow rate", "rainfall", "storage height"]
-            outputDF = summarizeResults(headerList)
+            allDataDF = summarizeResults(headerList, allDataDF, outputList, cal_settings)
         elif cal_settings["used_flowModel"] == "twoStepTwoValueStorageFunc":
             headerList = ["Date", "flow rate", "rainfall", "storage height"]
-            outputDF = summarizeResults(headerList)
+            allDataDF = summarizeResults(headerList, allDataDF, outputList, cal_settings)
     elif cal_settings["used_algorithm"] == "kalmanFilter":
         outputList = kalmanCalculator.getOutputData()
-        headerList = ["Date", "flow rate", "rainfall", "flow rate error", "storage height"]
-        outputDF = summarizeResults(headerList)
+        headerList = ["Date", "flow rate", "rainfall", "flow rate error",
+                      "storage height"]
+        allDataDF = summarizeResults(headerList, allDataDF, outputList, cal_settings)
 
     # 図の出力
     # ----------------------------------------
     graphMaker = GraphMaker(allDataDF)
+    endTime = cal_settings["endTime"] + \
+              datetime.timedelta(hours=int(cal_settings["forecastTime"]))
     if cal_settings["used_algorithm"] == "de":
         if cal_settings["used_flowModel"] == "classicOneValueStorageFunc":
             savePath = outputFilePath + \
@@ -181,8 +187,7 @@ if __name__ == '__main__':
             savePath = outputFilePath + "differential_evolution/tankModel/"
     elif cal_settings["used_algorithm"] == "kalmanFilter":
         savePath = outputFilePath + "kalmanFilter/"
-    xTickList = [cal_settings["startTime"], cal_settings["endTime"],
-                 cal_settings["timescale"]]
+    xTickList = [cal_settings["startTime"], endTime, cal_settings["timescale"]]
     xLabel = "Date"
 
     # flow rate - date
@@ -207,7 +212,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "WL.png"
     graphMaker.makeWaterLevelGraph(yNameList, xTickList, xLabel, yLabelList)
-    graphMaker.save(outputFileName, savePath)
+    # graphMaker.save(outputFileName, savePath)
 
     # flow rate - storage height
     xName = "flow rate(cal)"

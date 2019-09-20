@@ -16,6 +16,7 @@ from filterpy.common import Q_continuous_white_noise
 import statistics
 from dataReader import DataReader
 import pprint
+from numpy import dot
 
 
 class KalmanCalculator:
@@ -44,14 +45,13 @@ class KalmanCalculator:
         self.used_algorithm = cal_settings["used_algorithm"]
         self.used_flowModel = cal_settings["used_flowModel"]
         self.startTime = cal_settings["startTime"]
-        self.endTime = cal_settings["endTime"]
+        self.obsDateTime = cal_settings["endTime"]
         self.timescale = cal_settings["timescale"]
         self.timeInterval = cal_settings["timeInterval"]
         self.floodStartTime = cal_settings["floodStartTime"]
         self.floodEndTime = cal_settings["floodEndTime"]
         self.rainfallStartTime = cal_settings["rainfallStartTime"]
         self.rainfallEndTime = cal_settings["rainfallEndTime"]
-        self.obsDateTime = cal_settings["obsDateTime"]
         self.forecastTime = cal_settings["forecastTime"]
         self.catchmentArea = cal_settings["catchmentArea"]
 
@@ -194,11 +194,11 @@ class KalmanCalculator:
         # システム誤差の分散・共分散 (乗算ノイズ)
         # 誤差が小さいとカルマンゲインが小さくなり変数の値がほとんど更新しなくなる。
         kalman_Q = np.array(
-            [[0.01, 0, 0, 0, 0],
-             [0, 0.01, 0, 0, 0],
-             [0, 0, 0.01, 0, 0],
-             [0, 0, 0, 0.01, 0],
-             [0, 0, 0, 0, 0.01]])
+            [[0.001, 0, 0, 0, 0],
+             [0, 0.001, 0, 0, 0],
+             [0, 0, 0.001, 0, 0],
+             [0, 0, 0, 0.001, 0],
+             [0, 0, 0, 0, 0.001]])
 
         # カルマンフィルタ計算
         # ----------------------------------------
@@ -216,6 +216,7 @@ class KalmanCalculator:
             obsError = 0.1
             # 観測行列
             # kalman_H = np.array([[1, 0, 0, 0, 0]])
+            print(dot(kalman_B, kalman_u))
             kalman_H = np.array([[1, 0, 0, 0, 0], [0, 0, 0, 0, 1]])
             kalman.predict(B=kalman_B, u=kalman_u, F=kalman_F, Q=kalman_Q)
             timestamp += gridTime
@@ -233,6 +234,9 @@ class KalmanCalculator:
             kalman_R = np.array([[obsError * self.kalman_xList[-1][0][0], 0],
                                  [0, obsError * self.kalman_xList[-1][4][0]]])
             kalman.update(z=measurableList[-1], R=kalman_R, H=kalman_H)  # 更新(z=[[None]])
+            self.kalman_xList.append(kalman.x)
+            self.kalman_PList.append(kalman.P)
+            self.kalmanVarianceList.append(np.diag(kalman.P))
             # システム誤差の分散・共分散 (乗算ノイズ)
             # 雨量の場合は予測誤差とする
             kalman_Q = np.array(
@@ -249,15 +253,13 @@ class KalmanCalculator:
             storageHeight = k11 * flowRate**self.p1 + k12 * self.kalman_xList[-1][1][0]
             self.outputList.append([timestamp, flowRate, rainfallList[-1], 
                                     errorFlowRate, storageHeight])
-            self.kalman_xList.append(kalman.x)
-            self.kalman_PList.append(kalman.P)
-            self.kalmanVarianceList.append(np.diag(kalman.P))
         # time = [i for i in range(len(kalman_xList))]
         # kalman_xList = np.array(kalman_xList).reshape(25, 5)
         # plt.plot(time, kalman_xList)
-        self.forecast(kalman, rainfallList)
+        if int(self.forecastTime) != 0:
+            self.forecast(kalman, rainfallList)
 
-    def forecast(self, kalman, rainfallList, obsDateTime=None, forecastTime=None):
+    def forecast(self, kalman, rainfallList=None, obsDateTime=None, forecastTime=None):
         """
         class for the forecast (15hours) of state vector x and error function variance P
         ----
@@ -268,24 +270,26 @@ class KalmanCalculator:
             obsDateTime = self.obsDateTime
         if forecastTime is None:
             forecastTime = self.forecastTime
+        if rainfallList is None:
+            rainfallList = []
         dataReader_kal = DataReader()
         dataReader_kal.setInputFilePath()
-        cal_settings = dataReader_kal.getCalSettings()
         grib2_settings = dataReader_kal.getGrib2Params()
         rainfallGPVDF = dataReader_kal.getRainfallGPV(
-            forecastTime=int(cal_settings["forecastTime"]), dateTime=obsDateTime)
+            forecastTime=int(self.forecastTime), dateTime=obsDateTime)
         for rainfall in rainfallGPVDF["rainfall"].values.tolist():
             rainfallList.append(rainfall)
-        meanRainfall = sum(rainfallList) / len(rainfallList)
+        meanRainfall = statistics.mean(rainfallList)
         forecastDateTime = obsDateTime + \
-            eval("datetime.timedelta(" + self.timescale + "=" + self.forecastTime + ")")
-        timeInterval = grib2_settings["timeInterval"]
-        gridTime = eval("datetime.timedelta(" + self.timescale + "=" + timeInterval + ")")
+            eval("datetime.timedelta(" + grib2_settings["timescale"] +
+                 "=" + self.forecastTime + ")")
+        gridTime = eval("datetime.timedelta(" + grib2_settings["timescale"] + "=" +
+                        grib2_settings["timeInterval"] + ")")
         dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型
         kalman_u = np.array([[1]*self.dim_z]).T
         sysError = 0.1
         timestamp = obsDateTime + gridTime
-        while timestamp < forecastDateTime:
+        while timestamp <= forecastDateTime:
             # meanRainfall = statistics.mean(rainfallList)
             # meanRainfall = rainfallGPVDF["rainfall"].mean() + 10**-10
             lambda1 = 2.8235 * self.catchmentArea**0.24
@@ -307,8 +311,12 @@ class KalmanCalculator:
                      [0, 0, (self.kalman_xList[-1][2][0] * sysError)**2, 0, 0],
                      [0, 0, 0, (self.kalman_xList[-1][3][0] * sysError)**2, 0],
                      [0, 0, 0, 0, (self.kalman_xList[-1][4][0] * sysError)**2]])
+            print(dot(kalman_B, kalman_u))
+            # print((dot(kalman_F, kalman.x) + dot(kalman_B, kalman_u))[0][0])
             kalman.predict(B=kalman_B, u=kalman_u, F=kalman_F, Q=kalman_Q)
-            timestamp += gridTime
+            self.kalman_xList.append(kalman.x)
+            self.kalman_PList.append(kalman.P)
+            self.kalmanVarianceList.append(np.diag(kalman.P))
             flowRate = self.kalman_xList[-1][0][0]**(1/self.p2)
             errorFlowRate = self.catchmentArea / 3.6 / self.p2 * \
                 self.kalman_xList[-1][0][0]**(1/self.p2 - 1) * \
@@ -317,6 +325,4 @@ class KalmanCalculator:
             self.outputList.append([timestamp, flowRate, 
                                     rainfallGPVDF.loc[timestamp, "rainfall"],
                                     errorFlowRate])
-            self.kalman_xList.append(kalman.x)
-            self.kalman_PList.append(kalman.P)
-            self.kalmanVarianceList.append(np.diag(kalman.P))
+            timestamp += gridTime
