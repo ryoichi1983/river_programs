@@ -194,11 +194,11 @@ class KalmanCalculator:
         # システム誤差の分散・共分散 (乗算ノイズ)
         # 誤差が小さいとカルマンゲインが小さくなり変数の値がほとんど更新しなくなる。
         kalman_Q = np.array(
-            [[0.001, 0, 0, 0, 0],
-             [0, 0.001, 0, 0, 0],
-             [0, 0, 0.001, 0, 0],
-             [0, 0, 0, 0.001, 0],
-             [0, 0, 0, 0, 0.001]])
+            [[0.01, 0, 0, 0, 0],
+             [0, 0.01, 0, 0, 0],
+             [0, 0, 0.01, 0, 0],
+             [0, 0, 0, 0.01, 0],
+             [0, 0, 0, 0, 0.01]])
 
         # カルマンフィルタ計算
         # ----------------------------------------
@@ -216,7 +216,6 @@ class KalmanCalculator:
             obsError = 0.1
             # 観測行列
             # kalman_H = np.array([[1, 0, 0, 0, 0]])
-            print(dot(kalman_B, kalman_u))
             kalman_H = np.array([[1, 0, 0, 0, 0], [0, 0, 0, 0, 1]])
             kalman.predict(B=kalman_B, u=kalman_u, F=kalman_F, Q=kalman_Q)
             timestamp += gridTime
@@ -311,7 +310,6 @@ class KalmanCalculator:
                      [0, 0, (self.kalman_xList[-1][2][0] * sysError)**2, 0, 0],
                      [0, 0, 0, (self.kalman_xList[-1][3][0] * sysError)**2, 0],
                      [0, 0, 0, 0, (self.kalman_xList[-1][4][0] * sysError)**2]])
-            print(dot(kalman_B, kalman_u))
             # print((dot(kalman_F, kalman.x) + dot(kalman_B, kalman_u))[0][0])
             kalman.predict(B=kalman_B, u=kalman_u, F=kalman_F, Q=kalman_Q)
             self.kalman_xList.append(kalman.x)

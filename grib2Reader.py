@@ -8,6 +8,7 @@ Created on Fri Jun  7 13:41:00 2019
 import subprocess
 import os
 import pandas as pd
+import datetime
 
 
 class Grib2Reader:
@@ -120,6 +121,7 @@ class Grib2Reader:
                                usecols=[1, 4, 5, 6], index_col=0)
         outputDF.columns = ["longitude", "latitude", "rainfall"]
         outputDF.index = pd.to_datetime(outputDF.index)
+        outputDF.index += datetime.timedelta(hours=9)
         # gpv = outputDF.query(eval("longitude==" + longitude + " & latitude==" + latitude))
         # gpv = outputDF.query("longitude==141.375 & latitude==43.05")
         gpv = outputDF[(outputDF['longitude'] == longitude) &

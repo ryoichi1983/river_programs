@@ -324,8 +324,9 @@ class DataReader(object):
             raise ValueError("the hour of endTime variables must be a multiple of 3")
         grib2_settings = self.getGrib2Params()
         grib2Reader = Grib2Reader(self.inputFilePath)
-        grib2FileName = "Z__C_RJTD_" + dateTime.strftime("%Y%m%d%H%M%S") + \
-                        "_MSM_GPV_Rjp_Lsurf_FH00-15_grib2.bin"
+        grib2FileName = "Z__C_RJTD_" + \
+            (dateTime - datetime.timedelta(hours=9)).strftime("%Y%m%d%H%M%S") + \
+            "_MSM_GPV_Rjp_Lsurf_FH00-15_grib2.bin"
         # grib2 データから抽出された所望の気象データが格納されたファイル名
         tmpFileName = "tmpfile.csv"
 

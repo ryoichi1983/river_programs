@@ -69,6 +69,7 @@ if __name__ == '__main__':
 
     # 各種計算
     # ----------------------------------------
+    """
     totalRainfall = allDataDF["rainfall"].loc[
         cal_settings["rainfallStartTime"] + datetime.timedelta(hours=1):
         cal_settings["rainfallEndTime"]].sum()  # 総雨量
@@ -91,6 +92,7 @@ if __name__ == '__main__':
     # effectiveRainfallDF = allDataDF["rainfall"].\
     # loc[flowStartTime+datetime.timedelta(hours=1):flowEndTime] * flowRatio
     # effectiveRainfallDF = allDataDF["rainfall"] * flowRatio
+    """
 
     # 流出計算
     # ----------------------------------------
@@ -197,10 +199,11 @@ if __name__ == '__main__':
         cal_settings["used_flowModel"] + "_" + \
         cal_settings["used_algorithm"] + "_" + \
         cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["endTime"].strftime("%Y%m%d%H%M") + "_" + \
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FR.png"
     graphMaker.makeFlowRateGraph(yNameList, xTickList, xLabel, yLabelList)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     # water level - date
     yNameList = ["water level(obs)", "water level(cal)", "rainfall"]
@@ -209,10 +212,11 @@ if __name__ == '__main__':
         cal_settings["used_flowModel"] + "_" + \
         cal_settings["used_algorithm"] + "_" + \
         cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["endTime"].strftime("%Y%m%d%H%M") + "_" + \
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "WL.png"
     graphMaker.makeWaterLevelGraph(yNameList, xTickList, xLabel, yLabelList)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     # flow rate - storage height
     xName = "flow rate(cal)"
@@ -223,10 +227,11 @@ if __name__ == '__main__':
         cal_settings["used_flowModel"] + "_" + \
         cal_settings["used_algorithm"] + "_" + \
         cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
+        cal_settings["endTime"].strftime("%Y%m%d%H%M") + "_" + \
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FS.png"
     graphMaker.makeFlow_StorageRelation(xName, yName, xLabel, yLabel)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     elapsedTime = (datetime.datetime.now() - startCalTime).total_seconds()
     print(f"################################")
