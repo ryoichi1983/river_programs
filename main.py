@@ -78,17 +78,23 @@ if __name__ == '__main__':
 
     # 各種計算
     # ----------------------------------------
+    baseFlowRate = allDataDF["flow rate(HQ)"].min()  # 基底流出高(期間平均)
+    totalRainfall = allDataDF["rainfall"].sum()  # 総雨量
+    # 直接流出高
+    directFlowVolumeDF = (allDataDF["flow rate(HQ)"] - baseFlowRate) * \
+        (cal_settings["endTime"] - cal_settings["startTime"]).total_seconds()
+    totalDirectFlowVolume = directFlowVolumeDF.sum()  # 総直接流出高
+    # 流出率
+    flowRatio = totalDirectFlowVolume / \
+                (totalRainfall/1000 * cal_settings["catchmentArea"] * 10**6)
+    # 有効雨量のデータフレーム
+    allDataDF["effective rainfall"] = list(allDataDF["rainfall"] * flowRatio)
     """
-    totalRainfall = allDataDF["rainfall"].loc[
-        cal_settings["rainfallStartTime"] + datetime.timedelta(hours=1):
-        cal_settings["rainfallEndTime"]].sum()  # 総雨量
     totalRainfallExceptLoss = allDataDF["rainfall"].loc[
         cal_settings["floodStartTime"] + datetime.timedelta(hours=1):
         cal_settings["rainfallEndTime"]].sum()  # 初期損失雨量をのぞく総雨量
     # 初期損失雨量
     initialLossRainfall = totalRainfall - totalRainfallExceptLoss
-    # 基底流出高(一定を仮定=0)
-    baseFlowHeight = allDataDF.at[cal_settings["floodStartTime"], "flow rate(HQ)"]
     # 直接流出高のデータフレーム
     directFlowHeightDF = allDataDF["flow rate(HQ)"].loc[
         cal_settings["floodStartTime"]:cal_settings["floodEndTime"]] - baseFlowHeight
@@ -96,8 +102,6 @@ if __name__ == '__main__':
     totalDirectFlowHeight = directFlowHeightDF.sum()
     # 流出率
     flowRatio = totalDirectFlowHeight / totalRainfallExceptLoss
-    # 有効雨量のデータフレーム
-    allDataDF["effective rainfall"] = list(allDataDF["rainfall"] * flowRatio)
     # effectiveRainfallDF = allDataDF["rainfall"].\
     # loc[flowStartTime+datetime.timedelta(hours=1):flowEndTime] * flowRatio
     # effectiveRainfallDF = allDataDF["rainfall"] * flowRatio
@@ -116,10 +120,10 @@ if __name__ == '__main__':
         tankModel_settings = dataReader.getTankParams()
         paramOptimizer.setReadDataForTank(allDataDF,
                                           cal_settings["catchmentArea"],
-                                          tankModel_settings)
+                                          tankModel_settings, baseFlowRate)
         bounds = paramOptimizer.getBounds()
         resultTuple = differential_evolution(paramOptimizer.searchFunc, bounds)
-        #result = resultTuple[0]
+        result = resultTuple[0]
         #populationList = resultTuple[1]
         #population_energyList = resultTuple[2]
         # 最適化されたパラメータを用いた流出モデルの計算
@@ -204,7 +208,10 @@ if __name__ == '__main__':
 
     # flow rate - date
     yNameList = ["flow rate(HQ)", "flow rate(cal)", "rainfall"]
-    yLabelList = ["Flow rate (m$^3$/s)", "Rainfall (mm/hr)"]
+    if cal_settings["timescale"] == "hours" or "minutes":
+        yLabelList = ["Flow rate (m$^3$/s)", "Rainfall (mm/hr)"]
+    if cal_settings["timescale"] == "days":
+        yLabelList = ["Flow rate (m$^3$/s)", "Rainfall (mm/day)"]
     outputFileName = cal_settings["obsName"] + "_" + \
         cal_settings["used_flowModel"] + "_" + \
         cal_settings["used_algorithm"] + "_" + \

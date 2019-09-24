@@ -78,18 +78,18 @@ class DataReader(object):
                                                 "flowModel"),
              "catchmentArea": float(self.inifile.get("riverParameters",
                                                      "catchmentArea")),
-             "rainfallStartTime": datetime.datetime.strptime(
-                 self.inifile.get("riverParameters", "rainfallStartTime"),
-                 "%Y/%m/%d %H:%M:%S"),  # 降雨開始時刻
-             "rainfallEndTime": datetime.datetime.strptime(
-                 self.inifile.get("riverParameters", "rainfallEndTime"),
-                 "%Y/%m/%d %H:%M:%S"),  # 降雨終了時刻
-             "floodStartTime": datetime.datetime.strptime(
-                 self.inifile.get("riverParameters", "floodStartTime"),
-                 "%Y/%m/%d %H:%M:%S"),  # 氾濫開始時刻
-             "floodEndTime": datetime.datetime.strptime(
-                 self.inifile.get("riverParameters", "floodEndTime"),
-                 "%Y/%m/%d %H:%M:%S"),  # 氾濫終了時刻
+             #"rainfallStartTime": datetime.datetime.strptime(
+             #    self.inifile.get("riverParameters", "rainfallStartTime"),
+             #    "%Y/%m/%d %H:%M:%S"),  # 降雨開始時刻
+             #"rainfallEndTime": datetime.datetime.strptime(
+             #    self.inifile.get("riverParameters", "rainfallEndTime"),
+             #    "%Y/%m/%d %H:%M:%S"),  # 降雨終了時刻
+             #"floodStartTime": datetime.datetime.strptime(
+             #    self.inifile.get("riverParameters", "floodStartTime"),
+             #    "%Y/%m/%d %H:%M:%S"),  # 氾濫開始時刻
+             #"floodEndTime": datetime.datetime.strptime(
+             #    self.inifile.get("riverParameters", "floodEndTime"),
+             #    "%Y/%m/%d %H:%M:%S"),  # 氾濫終了時刻
              "obsName": self.inifile.get("riverParameters", "obsName"),
              "forecastTime": self.inifile.get("riverParameters", "forecastTime"),
              }

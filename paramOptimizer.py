@@ -70,7 +70,8 @@ class ParamOptimizer:
             pass
         return objectivefunction
 
-    def setReadDataForTank(self, readDataDF, catchmentArea, tankModel_settings):
+    def setReadDataForTank(self, readDataDF, catchmentArea, tankModel_settings,
+                           baseFlowRate):
         """
         definition of the instance variables
         ----
@@ -87,6 +88,7 @@ class ParamOptimizer:
         self.readDataDF = readDataDF
         self.catchmentArea = catchmentArea
         self.tankModel_settings = tankModel_settings
+        self.baseFlowRate = baseFlowRate
 
     def setTankParams(self, x):
         """
@@ -160,7 +162,8 @@ class ParamOptimizer:
                 dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型
                 rainfall = self.readDataDF.loc[timestamp, "rainfall"]
                 self.outputList.append(tankModelCalculator.calculateTank(dt, rainfall))
-                flowRate = self.outputList[-1][4] * self.catchmentArea / 3.6
+                flowRate = self.outputList[-1][4] * self.catchmentArea / 3.6 + \
+                           self.baseFlowRate
                 self.outputList[-1] = np.append(self.outputList[-1],
                                                 [timestamp, flowRate, rainfall])
                 simulationList.append(flowRate)
@@ -303,7 +306,7 @@ class ParamOptimizer:
         """
         if self.used_flowModel == "tankModel":
             return [(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 10), 
-                    (0, 10), (0, 1000), (0, 1000), (0, 1000), (0, 1000)]
+                    (0, 10), (0, 100), (0, 100), (0, 50), (0, 50)]
         elif self.used_flowModel == "classicOneValueStorageFunc":
             return [(0, 10), (0, 1.5)]
         elif self.used_flowModel == "classicTwoValueStorageFunc":
