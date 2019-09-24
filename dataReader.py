@@ -57,7 +57,7 @@ class DataReader(object):
         ----
         cal_settings: dic
         """
-        cal_settings = \
+        self.cal_settings = \
             {"startTime": datetime.datetime.strptime(self.inifile.get(
                 "inputFile", "startTime"), "%Y/%m/%d %H:%M:%S"),
              "endTime": datetime.datetime.strptime(self.inifile.get(
@@ -68,6 +68,8 @@ class DataReader(object):
                                                    "used_rainfallData"),
              "used_waterLevelData": self.inifile.get("inputFile",
                                                      "used_waterLevelData"),
+             "used_flowRateData": self.inifile.get("inputFile",
+                                                   "used_flowRateData"),
              "used_algorithm": self.inifile.get("optimizationParameters",
                                                 "algorithm"),
              "used_objFunc": self.inifile.get("optimizationParameters",
@@ -88,11 +90,11 @@ class DataReader(object):
              "floodEndTime": datetime.datetime.strptime(
                  self.inifile.get("riverParameters", "floodEndTime"),
                  "%Y/%m/%d %H:%M:%S"),  # 氾濫終了時刻
-             "riverName": self.inifile.get("riverParameters", "riverName"),
+             "obsName": self.inifile.get("riverParameters", "obsName"),
              "forecastTime": self.inifile.get("riverParameters", "forecastTime"),
              }
 
-        return cal_settings
+        return self.cal_settings
 
     def putTime(self, startTime, endTime, timeInterval, timescale):
         """
@@ -111,6 +113,9 @@ class DataReader(object):
             dataNum = int((endTime - startTime).
                           total_seconds()/60/int(timeInterval) + 1)
             gridTimeList = [datetime.timedelta(minutes=10)]
+        elif timescale == "days":
+            dataNum = int((endTime - startTime).days/int(timeInterval) + 1)
+            gridTimeList = [datetime.timedelta(days=1)]
         # for i in range(dataNum-1):
         for i in range(dataNum-1):
             timestamp += eval("datetime.timedelta(" + timescale + "=" + timeInterval + ")")
@@ -252,32 +257,67 @@ class DataReader(object):
             }
         return [range1, range2, range3]
 
-    def readRainfallData(self, used_rainfallData, timeInterval, timescale,
+    def readFlowRateData(self, used_flowRateData, timeInterval, timescale,
                          startTime, endTime):
         """
-        method for setting data about the rainfall at the motsukisamu river
+        method for setting data about the flow rate
         ----
         Input
         ----
         """
+        obsName = self.cal_settings["obsName"]
+        path = self.inputFilePath + obsName + "/"
+        # 厚真大橋データ (1 日)
+        if used_flowRateData == "atsumaohashi" and \
+           timeInterval+timescale == "1days":
+            inputFileName = self.inifile.get("inputFile", "flowRateFileName1")
+
+            inputDF = pd.read_csv(path + inputFileName,
+                encoding=None, skiprows=None, header=None, sep=",",
+                skipinitialspace=True, usecols=[0, 2], index_col=0)
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF.columns = ["flow rate(HQ)"]
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].astype(str)
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].str.rstrip("R")
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].str.rstrip(">")
+            inputDF = inputDF.apply(pd.to_numeric, args=('coerce',)) / 100
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                       join_axes=[self.allDataDF.index])
+
+
+    def readRainfallData(self, used_rainfallData, timeInterval, timescale,
+                         startTime, endTime):
+        """
+        method for setting data about the rainfall
+        ----
+        Input
+        ----
+        """
+        obsName = self.cal_settings["obsName"]
+        path = self.inputFilePath + obsName + "/"
         # 札幌アメダスの気象庁データ (1 時間)
         if used_rainfallData == "sapporo amedas" and \
            timeInterval+timescale == "1hours":
             inputFileName = self.inifile.get("inputFile", "rainfallFileName1")
-            inputDF = pd.read_csv(self.inputFilePath + inputFileName,
-                encoding=None, skiprows=5, header=None, sep=",",
-                skipinitialspace=True, usecols=[0, 1], index_col=0)
+            inputDF = pd.read_csv(path + inputFileName,
+                                  encoding="shift-jis",
+                                  skiprows=5,
+                                  header=None,
+                                  sep=",",
+                                  skipinitialspace=True,
+                                  usecols=[0, 1],
+                                  index_col=0)
             inputDF.index = pd.to_datetime(inputDF.index)
             inputDF.columns = ["rainfall"]
-            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1)
-
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                        join_axes=[self.allDataDF.index])
         # 望月寒川の web データ (1 時間)
         elif used_rainfallData == "motsukisamu" and \
              timeInterval+timescale == "1hours":
             # データが格納された列番号(時間ごと)
             dataColumnNo = [x for x in range(7, 31)]
             inputFileName = self.inifile.get("inputFile", "rainfallFileName2")
-            inputDF = pd.read_csv(self.inputFilePath + inputFileName,
+            inputDF = pd.read_csv(path + inputFileName,
                                   encoding="shift-jis",
                                   skiprows=1,
                                   header=None,
@@ -307,7 +347,7 @@ class DataReader(object):
         elif used_rainfallData == "motsukisamu" and \
            timeInterval+timescale == "10minutes":
             inputFileName = self.inifile.get("inputFile", "rainfallFileName3")
-            inputDF = pd.read_csv(self.inputFilePath + inputFileName,
+            inputDF = pd.read_csv(path + inputFileName,
                 encoding=None, skiprows=None, header=None, sep=",",
                 skipinitialspace=True, usecols=[0, 2], index_col=0)
             inputDF.index = pd.to_datetime(inputDF.index)
@@ -316,14 +356,32 @@ class DataReader(object):
                                        join_axes=[self.allDataDF.index])
             # self.allDataDF = pd.concat([self.allDataDF, inputDF/10*6],
                                        # axis=1)
+        # 厚真アメダスの気象庁データ (1 日)
+        if used_rainfallData == "atsuma amedas" and \
+           timeInterval+timescale == "1days":
+            inputFileName = self.inifile.get("inputFile", "rainfallFileName4")
+            inputDF = pd.read_csv(path + inputFileName,
+                                  encoding="shift-jis",
+                                  skiprows=6,
+                                  header=None,
+                                  sep=",",
+                                  skipinitialspace=True,
+                                  usecols=[0, 1],
+                                  index_col=0)
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF.columns = ["rainfall"]
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                        join_axes=[self.allDataDF.index])
 
     def getRainfallGPV(self, forecastTime, dateTime=None):
+        obsName = self.inifile.get("riverParameters", "obsName")
+        path = self.inputFilePath + obsName + "/"
         if dateTime is None:
             dateTime = self.endTime
         if dateTime.hour % 3 != 0:
             raise ValueError("the hour of endTime variables must be a multiple of 3")
         grib2_settings = self.getGrib2Params()
-        grib2Reader = Grib2Reader(self.inputFilePath)
+        grib2Reader = Grib2Reader(path)
         grib2FileName = "Z__C_RJTD_" + \
             (dateTime - datetime.timedelta(hours=9)).strftime("%Y%m%d%H%M%S") + \
             "_MSM_GPV_Rjp_Lsurf_FH00-15_grib2.bin"
@@ -363,11 +421,13 @@ class DataReader(object):
     def readWaterLevelData(self, used_waterLevelData, timeInterval, timescale,
                            startTime, endTime):
         """
-        method for setting data about the water level at the motsukisamu river
+        method for setting data about the water level
         ----
         Input
         ----
         """
+        obsName = self.cal_settings["obsName"]
+        path = self.inputFilePath + obsName + "/"
         # 望月寒川の時刻水位月報 (1 時間)
         if used_waterLevelData == "motsukisamu" and\
            timeInterval+timescale == "1hours":
@@ -375,7 +435,7 @@ class DataReader(object):
             sheetList = ["201401", "201402", "201403", "201404", "201405",
                          "201406", "201407", "201408", "201409", "201410",
                          "201411", "201412"]
-            inputDF2Dic = pd.read_excel(self.inputFilePath + inputFileName,
+            inputDF2Dic = pd.read_excel(path + inputFileName,
                 sheet_name=sheetList, skiprows=6, index_col=0)
             startYear = int(startTime.strftime("%Y"))
             startMonth = int(startTime.strftime("%-m"))
@@ -404,7 +464,7 @@ class DataReader(object):
         elif used_waterLevelData == "motsukisamu" and\
            timeInterval+timescale == "10minutes":
             inputFileName = self.inifile.get("inputFile", "waterLevelFileName2")
-            inputDF = pd.read_csv(self.inputFilePath + inputFileName,
+            inputDF = pd.read_csv(path + inputFileName,
                 encoding=None, skiprows=None, header=None, sep=",",
                 skipinitialspace=True, usecols=[0, 2], index_col=0)
             inputDF.index = pd.to_datetime(inputDF.index)

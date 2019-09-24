@@ -54,6 +54,7 @@ class KalmanCalculator:
         self.rainfallEndTime = cal_settings["rainfallEndTime"]
         self.forecastTime = cal_settings["forecastTime"]
         self.catchmentArea = cal_settings["catchmentArea"]
+        self.obsName = cal_settings["obsName"]
 
     def setReadData(self, readOnlyDataDF, catchmentArea, kalman_settings):
         """

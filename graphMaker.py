@@ -46,13 +46,22 @@ class GraphMaker(object):
             ax1.set_ylim([200, 0])
             ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
                     lw=0, width=0.04, color="0.8")
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
         elif xTickList[2] == "minutes":
             ax.set_ylim([0, 80])
             ax1.set_ylim([200, 0])
             ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
                     lw=0, width=0.01, color="0.8")
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+        elif xTickList[2] == "days":
+            ax.set_ylim([0, 80])
+            ax1.set_ylim([200, 0])
+            ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
+                    lw=0, width=0.01, color="0.8")
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=6))
         ax.set_xlabel(xLabel, size=9)
         ax.set_ylabel(yLabelList[0], size=9)
         ax1.set_xlabel(xLabel, size=9)
