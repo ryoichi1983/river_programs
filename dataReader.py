@@ -76,8 +76,8 @@ class DataReader(object):
                                               "objFunction"),
              "used_flowModel": self.inifile.get("optimizationParameters",
                                                 "flowModel"),
-             "catchmentArea": float(self.inifile.get("riverParameters",
-                                                     "catchmentArea")),
+             #"catchmentArea": float(self.inifile.get("riverParameters",
+             #                                        "catchmentArea")),
              #"rainfallStartTime": datetime.datetime.strptime(
              #    self.inifile.get("riverParameters", "rainfallStartTime"),
              #    "%Y/%m/%d %H:%M:%S"),  # 降雨開始時刻
@@ -267,11 +267,11 @@ class DataReader(object):
         """
         obsName = self.cal_settings["obsName"]
         path = self.inputFilePath + obsName + "/"
+
         # 厚真大橋データ (1 日)
         if used_flowRateData == "atsumaohashi" and \
            timeInterval+timescale == "1days":
             inputFileName = self.inifile.get("inputFile", "flowRateFileName1")
-
             inputDF = pd.read_csv(path + inputFileName,
                 encoding=None, skiprows=None, header=None, sep=",",
                 skipinitialspace=True, usecols=[0, 2], index_col=0)
@@ -284,6 +284,21 @@ class DataReader(object):
             self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
                                        join_axes=[self.allDataDF.index])
 
+        # 厚真大橋データ (1 時間)
+        elif used_flowRateData == "atsumaohashi" and \
+           timeInterval+timescale == "1hours":
+            inputFileName = self.inifile.get("inputFile", "flowRateFileName2")
+            inputDF = pd.read_csv(path + inputFileName,
+                encoding=None, skiprows=None, header=None, sep=",",
+                skipinitialspace=True, usecols=[0, 2], index_col=0)
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF.columns = ["flow rate(HQ)"]
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].astype(str)
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].str.rstrip("R")
+            inputDF["flow rate(HQ)"] = inputDF["flow rate(HQ)"].str.rstrip(">")
+            inputDF = inputDF.apply(pd.to_numeric, args=('coerce',)) / 100
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                       join_axes=[self.allDataDF.index])
 
     def readRainfallData(self, used_rainfallData, timeInterval, timescale,
                          startTime, endTime):
@@ -295,6 +310,7 @@ class DataReader(object):
         """
         obsName = self.cal_settings["obsName"]
         path = self.inputFilePath + obsName + "/"
+
         # 札幌アメダスの気象庁データ (1 時間)
         if used_rainfallData == "sapporo amedas" and \
            timeInterval+timescale == "1hours":
@@ -311,6 +327,7 @@ class DataReader(object):
             inputDF.columns = ["rainfall"]
             self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
                                         join_axes=[self.allDataDF.index])
+
         # 望月寒川の web データ (1 時間)
         elif used_rainfallData == "motsukisamu" and \
              timeInterval+timescale == "1hours":
@@ -356,6 +373,7 @@ class DataReader(object):
                                        join_axes=[self.allDataDF.index])
             # self.allDataDF = pd.concat([self.allDataDF, inputDF/10*6],
                                        # axis=1)
+
         # 厚真アメダスの気象庁データ (1 日)
         if used_rainfallData == "atsuma amedas" and \
            timeInterval+timescale == "1days":
@@ -363,6 +381,23 @@ class DataReader(object):
             inputDF = pd.read_csv(path + inputFileName,
                                   encoding="shift-jis",
                                   skiprows=6,
+                                  header=None,
+                                  sep=",",
+                                  skipinitialspace=True,
+                                  usecols=[0, 1],
+                                  index_col=0)
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF.columns = ["rainfall"]
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                        join_axes=[self.allDataDF.index])
+
+        # 厚真アメダスの気象庁データ (1 時間)
+        if used_rainfallData == "atsuma amedas" and \
+           timeInterval+timescale == "1hours":
+            inputFileName = self.inifile.get("inputFile", "rainfallFileName5")
+            inputDF = pd.read_csv(path + inputFileName,
+                                  encoding="shift-jis",
+                                  skiprows=5,
                                   header=None,
                                   sep=",",
                                   skipinitialspace=True,

@@ -42,12 +42,12 @@ class GraphMaker(object):
                 c="0.1", ls="-.", lw=1)
         ax.set_xlim([xTickList[0], xTickList[1]])
         if xTickList[2] == "hours":
-            ax.set_ylim([0, 80])
-            ax1.set_ylim([200, 0])
+            ax.set_ylim([0, 70])
+            ax1.set_ylim([140, 0])
             ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
                     lw=0, width=0.04, color="0.8")
             ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=12))
         elif xTickList[2] == "minutes":
             ax.set_ylim([0, 80])
             ax1.set_ylim([200, 0])

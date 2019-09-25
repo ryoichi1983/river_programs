@@ -42,25 +42,36 @@ if __name__ == '__main__':
                        cal_settings["timeInterval"],
                        cal_settings["timescale"])
     dataReader.setInputFilePath()
+
     if cal_settings["used_rainfallData"]:
+        # 雨量 (mm/hr)
         dataReader.readRainfallData(cal_settings["used_rainfallData"],
                                     cal_settings["timeInterval"],
                                     cal_settings["timescale"],
                                     cal_settings["startTime"],
                                     cal_settings["endTime"])
     if cal_settings["used_waterLevelData"]:
+        # 水位 (m)
         dataReader.readWaterLevelData(cal_settings["used_waterLevelData"],
                                       cal_settings["timeInterval"],
                                       cal_settings["timescale"],
                                       cal_settings["startTime"],
                                       cal_settings["endTime"])
+        # HQ 式
         HQParams = dataReader.getHQParams()
     if cal_settings["used_flowRateData"]:
+        # 流量 (m^3/s)
         dataReader.readFlowRateData(cal_settings["used_flowRateData"],
                                     cal_settings["timeInterval"],
                                     cal_settings["timescale"],
                                     cal_settings["startTime"],
                                     cal_settings["endTime"])
+    # 流域面積 (km^2)
+    if cal_settings["obsName"] == "atsumaohashi":
+        catchmentArea = 238.4
+    elif cal_settings["obsName"] == "motsukisamu":
+        catchmentArea = 6.13
+
     allDataDF = dataReader.getInputDataDF()
 
     # HQ 式から流量の計算
@@ -86,7 +97,7 @@ if __name__ == '__main__':
     totalDirectFlowVolume = directFlowVolumeDF.sum()  # 総直接流出高
     # 流出率
     flowRatio = totalDirectFlowVolume / \
-                (totalRainfall/1000 * cal_settings["catchmentArea"] * 10**6)
+                (totalRainfall/1000 * catchmentArea * 10**6)
     # 有効雨量のデータフレーム
     allDataDF["effective rainfall"] = list(allDataDF["rainfall"] * flowRatio)
     """
@@ -112,18 +123,17 @@ if __name__ == '__main__':
     if cal_settings["used_algorithm"] == "kalmanFilter":
         kalmanCalculator = KalmanCalculator(cal_settings)
         kalman_settings = dataReader.getKalmanSettings()
-        kalmanCalculator.setReadData(allDataDF, cal_settings["catchmentArea"],
-                                     kalman_settings)
+        kalmanCalculator.setReadOnlyData(allDataDF, catchmentArea, kalman_settings,
+                                         baseFlowRate, flowRatio)
         kalmanCalculator.run_EKF()
     elif cal_settings["used_algorithm"] == "de":
-        paramOptimizer = ParamOptimizer(cal_settings)
-        tankModel_settings = dataReader.getTankParams()
-        paramOptimizer.setReadDataForTank(allDataDF,
-                                          cal_settings["catchmentArea"],
-                                          tankModel_settings, baseFlowRate)
+        paramOptimizer = ParamOptimizer(cal_settings, baseFlowRate, catchmentArea, allDataDF)
+        if cal_settings["used_flowModel"] == "tankModel":
+            tankModel_settings = dataReader.getTankParams()
+            paramOptimizer.setReadDataForTank(tankModel_settings)
         bounds = paramOptimizer.getBounds()
         resultTuple = differential_evolution(paramOptimizer.searchFunc, bounds)
-        result = resultTuple[0]
+        # result = resultTuple[0]
         #populationList = resultTuple[1]
         #population_energyList = resultTuple[2]
         # 最適化されたパラメータを用いた流出モデルの計算

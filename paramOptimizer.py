@@ -22,7 +22,7 @@ class ParamOptimizer:
     """
     パラメータ同定のための最適化をおこなうクラスです。
     """
-    def __init__(self, calc_settings):
+    def __init__(self, calc_settings, baseFlowRate, catchmentArea, readDataDF):
         """
         ----
         Input
@@ -39,6 +39,10 @@ class ParamOptimizer:
         used_algorithm: str
             * optimization model to find a minimization of function
             * de(differential evolution) or sceua(SCE-UA method)
+        readDataDF: DataFrame
+            input data for the flow analysis (READ ONLY!!)
+        catchmentArea: float
+            area to catch the rain for the river (km^2)
         """
         self.used_objFunc = calc_settings["used_objFunc"]
         self.used_algorithm = calc_settings["used_algorithm"]
@@ -47,6 +51,9 @@ class ParamOptimizer:
         self.endTime = calc_settings["endTime"]
         self.timescale = calc_settings["timescale"]
         self.timeInterval = calc_settings["timeInterval"]
+        self.baseFlowRate = baseFlowRate
+        self.catchmentArea = catchmentArea
+        self.readDataDF = readDataDF
 
     def calculateObjfunction(self, simulation, evaluation):
         """
@@ -70,25 +77,17 @@ class ParamOptimizer:
             pass
         return objectivefunction
 
-    def setReadDataForTank(self, readDataDF, catchmentArea, tankModel_settings,
-                           baseFlowRate):
+    def setReadDataForTank(self, tankModel_settings):
         """
         definition of the instance variables
         ----
         Input
         ----
-        readDataDF: DataFrame
-            input data for the flow analysis (READ ONLY!!)
-        catchmentArea: float
-            area to catch the rain for the river (km^2)
         tankModel_settings: dic(float)
             parameters for tank model
         ----
         """
-        self.readDataDF = readDataDF
-        self.catchmentArea = catchmentArea
         self.tankModel_settings = tankModel_settings
-        self.baseFlowRate = baseFlowRate
 
     def setTankParams(self, x):
         """
@@ -189,7 +188,8 @@ class ParamOptimizer:
                 rainfall = self.readDataDF.loc[timestamp, "effective rainfall"]
                 sol.set_f_params(a, p, rainfall)
                 integrateResultList = sol.integrate(sol.t+dt)
-                flowRate = (integrateResultList[0])**(1/p) * self.catchmentArea / 3.6
+                flowRate = (integrateResultList[0])**(1/p) * self.catchmentArea / 3.6 + \
+                           self.baseFlowRate
                 storageHeight = a * integrateResultList[0]
                 if storageHeight < 0:
                     return np.inf
@@ -225,7 +225,8 @@ class ParamOptimizer:
                 rainfall = self.readDataDF.loc[timestamp, "effective rainfall"]
                 sol.set_f_params(a, b, m, n, rainfall)
                 integrateResultList = sol.integrate(sol.t+dt)
-                flowRate = (integrateResultList[0])**(1/n) * self.catchmentArea / 3.6
+                flowRate = (integrateResultList[0])**(1/n) * self.catchmentArea / 3.6 + \
+                           self.baseFlowRate
                 storageHeight = a * integrateResultList[0]**(m/n) + \
                                 b * integrateResultList[1]
                 if storageHeight < 0:
@@ -276,7 +277,7 @@ class ParamOptimizer:
                                   integrateResultList[2]
                 # 差分計算の出力 (リストNo.0 が求めたい量であることに注意)
                 flowRate = (integrateResultList[0]**(1/p2) + integrateResultList[2]) * \
-                    self.catchmentArea / 3.6
+                    self.catchmentArea / 3.6 + self.baseFlowRate
                 storageHeight = k11 * integrateResultList[0]**(p1/p2) + \
                                 k12 * integrateResultList[1] + \
                                 k21 * integrateResultList[2] + \
@@ -305,8 +306,8 @@ class ParamOptimizer:
         ----
         """
         if self.used_flowModel == "tankModel":
-            return [(0, 10), (0, 10), (0, 10), (0, 10), (0, 10), (0, 10), 
-                    (0, 10), (0, 100), (0, 100), (0, 50), (0, 50)]
+            return [(0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1), 
+                    (0, 1), (0, 100), (0, 100), (0, 50), (0, 50)]
         elif self.used_flowModel == "classicOneValueStorageFunc":
             return [(0, 10), (0, 1.5)]
         elif self.used_flowModel == "classicTwoValueStorageFunc":
