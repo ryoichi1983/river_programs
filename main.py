@@ -98,6 +98,8 @@ if __name__ == '__main__':
     # 流出率
     flowRatio = totalDirectFlowVolume / \
                 (totalRainfall/1000 * catchmentArea * 10**6)
+    if flowRatio > 1:
+        flowRatio = 1
     # 有効雨量のデータフレーム
     allDataDF["effective rainfall"] = list(allDataDF["rainfall"] * flowRatio)
     """
@@ -230,7 +232,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FR.png"
     graphMaker.makeFlowRateGraph(yNameList, xTickList, xLabel, yLabelList)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     # water level - date
     if cal_settings["used_waterLevelData"]:
@@ -259,7 +261,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FS.png"
     graphMaker.makeFlow_StorageRelation(xName, yName, xLabel, yLabel)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     elapsedTime = (datetime.datetime.now() - startCalTime).total_seconds()
     print(f"################################")
