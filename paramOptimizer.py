@@ -309,9 +309,9 @@ class ParamOptimizer:
             return [(0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1), 
                     (0, 1), (0, 100), (0, 100), (0, 50), (0, 50)]
         elif self.used_flowModel == "classicOneValueStorageFunc":
-            return [(0, 100), (0, 1)]
+            return [(0, 300), (0, 1)]
         elif self.used_flowModel == "classicTwoValueStorageFunc":
-            return [(0, 100), (0, 100), (0, 0.1), (0, 0.1)]
+            return [(0, 100), (0, 100), (0, 1), (0, 1)]
         elif self.used_flowModel == "twoStepTwoValueStorageFunc":
             return [(0, 100), (0, 100), (0, 100), (0, 100), (0, 100), (0, 1), (0, 1)]
 
