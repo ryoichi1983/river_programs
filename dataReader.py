@@ -92,7 +92,14 @@ class DataReader(object):
              #    "%Y/%m/%d %H:%M:%S"),  # 氾濫終了時刻
              "obsName": self.inifile.get("riverParameters", "obsName"),
              "forecastTime": self.inifile.get("riverParameters", "forecastTime"),
+             "obsDateTime": datetime.datetime.strptime(self.inifile.get(
+                 "riverParameters", "obsDateTime"), "%Y/%m/%d %H:%M:%S"),
              }
+
+        if self.inifile.get("riverParameters", "prediction") == "True":
+            self.cal_settings["prediction"] = True
+        elif self.inifile.get("riverParameters", "prediction") == "None":
+            self.cal_settings["prediction"] = None
 
         return self.cal_settings
 

@@ -46,16 +46,18 @@ class KalmanCalculator:
         self.used_algorithm = cal_settings["used_algorithm"]
         self.used_flowModel = cal_settings["used_flowModel"]
         self.startTime = cal_settings["startTime"]
-        self.obsDateTime = cal_settings["endTime"]
+        self.endTime = cal_settings["endTime"]
         self.timescale = cal_settings["timescale"]
         self.timeInterval = cal_settings["timeInterval"]
-        self.floodStartTime = cal_settings["floodStartTime"]
-        self.floodEndTime = cal_settings["floodEndTime"]
-        self.rainfallStartTime = cal_settings["rainfallStartTime"]
-        self.rainfallEndTime = cal_settings["rainfallEndTime"]
         self.forecastTime = cal_settings["forecastTime"]
         self.catchmentArea = catchmentArea
         self.obsName = cal_settings["obsName"]
+        self.obsDateTime = cal_settings["obsDateTime"]
+        self.prediction = cal_settings["prediction"]
+        # self.floodStartTime = cal_settings["floodStartTime"]
+        # self.floodEndTime = cal_settings["floodEndTime"]
+        # self.rainfallStartTime = cal_settings["rainfallStartTime"]
+        # self.rainfallEndTime = cal_settings["rainfallEndTime"]
 
     def setReadOnlyData(self, readOnlyDataDF, catchmentArea, kalman_settings,
                         baseFlowRate, flowRatio):
@@ -255,7 +257,7 @@ class KalmanCalculator:
             flowRate = self.kalman_xList[-1][0][0]**(1/self.p2)
             errorFlowRate = self.catchmentArea / 3.6 / self.p2 * \
                 self.kalman_xList[-1][0][0]**(1/self.p2 - 1) * \
-                self.kalman_PList[0][0][0]**0.5
+                self.kalman_PList[0][0][0]**0.5 + self.baseFlowRate
             # sigma_WL = sigma_flow / (4 * flowRate)  要修正
             storageHeight = k11 * flowRate**self.p1 + k12 * self.kalman_xList[-1][1][0]
             self.outputList.append([timestamp, flowRate, rainfallList[-1], 
@@ -263,49 +265,69 @@ class KalmanCalculator:
         # time = [i for i in range(len(kalman_xList))]
         # kalman_xList = np.array(kalman_xList).reshape(25, 5)
         # plt.plot(time, kalman_xList)
+        if self.prediction:
+            dataReader_kal = DataReader()
+            dataReader_kal.setInputFilePath()
+            grib2_settings = dataReader_kal.getGrib2Params()
+            forecastDateTime = self.obsDateTime + \
+                eval("datetime.timedelta(" + grib2_settings["timescale"] +
+                     "=" + self.forecastTime + ")")
+            gridTime = eval("datetime.timedelta(" + grib2_settings["timescale"] + "=" +
+                        grib2_settings["timeInterval"] + ")")
+            rainfallGPVDF = dataReader_kal.getRainfallGPV(
+                forecastTime=int(self.forecastTime), dateTime=self.obsDateTime)
+            # rainfallList = []
+            # for rainfall in rainfallGPVDF["rainfall"].values.tolist():
+                # rainfallList.append(rainfall)
+            self.forecast(kalman, forecastDateTime, gridTime, rainfallGPVDF)
+        """
         if int(self.forecastTime) != 0:
-            self.forecast(kalman, rainfallList)
+            dataReader_kal = DataReader()
+            dataReader_kal.setInputFilePath()
+            grib2_settings = dataReader_kal.getGrib2Params()
+            forecastDateTime = self.obsDateTime + \
+                eval("datetime.timedelta(" + grib2_settings["timescale"] +
+                     "=" + self.forecastTime + ")")
+            gridTime = eval("datetime.timedelta(" + grib2_settings["timescale"] + "=" +
+                        grib2_settings["timeInterval"] + ")")
+            rainfallGPVDF = dataReader_kal.getRainfallGPV(
+                forecastTime=int(self.forecastTime), dateTime=self.obsDateTime)
+            # rainfallList = []
+            # for rainfall in rainfallGPVDF["rainfall"].values.tolist():
+                # rainfallList.append(rainfall)
+            self.forecast(kalman, forecastDateTime, gridTime, rainfallGPVDF)
+        """
 
-    def forecast(self, kalman, rainfallList=None, obsDateTime=None, forecastTime=None):
+    def forecast(self, kalman, forecastDateTime, gridTime, rainfallGPVDF=None):
         """
         class for the forecast (15hours) of state vector x and error function variance P
         ----
         Input
         ----
         """
-        if obsDateTime is None:
-            obsDateTime = self.obsDateTime
-        if forecastTime is None:
-            forecastTime = self.forecastTime
-        if rainfallList is None:
-            rainfallList = []
-        dataReader_kal = DataReader()
-        dataReader_kal.setInputFilePath()
-        grib2_settings = dataReader_kal.getGrib2Params()
-        rainfallGPVDF = dataReader_kal.getRainfallGPV(
-            forecastTime=int(self.forecastTime), dateTime=obsDateTime)
-        for rainfall in rainfallGPVDF["rainfall"].values.tolist():
-            rainfallList.append(rainfall)
-        meanRainfall = statistics.mean(rainfallList)
-        forecastDateTime = obsDateTime + \
-            eval("datetime.timedelta(" + grib2_settings["timescale"] +
-                 "=" + self.forecastTime + ")")
-        gridTime = eval("datetime.timedelta(" + grib2_settings["timescale"] + "=" +
-                        grib2_settings["timeInterval"] + ")")
+        if rainfallGPVDF is None:
+            rainfallGPVDF = self.rainfallGPVDF
+        meanRainfall = (self.readOnlyDataDF.loc[self.startTime:self.obsDateTime,
+                                                "rainfall"].sum() + \
+               rainfallGPVDF["rainfall"].sum()) / \
+               (len(self.readOnlyDataDF.loc[self.startTime:self.obsDateTime,
+                                            "rainfall"]) + \
+                len(rainfallGPVDF["rainfall"]))
         dt = gridTime.days * 24 + gridTime.seconds / 3600  # int 型
-        sol = ode(classicOneValueStorageFunc)
+        sol = ode(classicTwoValueStorageFunc)
         sol.set_integrator("dop853")
         t0 = 0
         y0 = [self.kalman_xList[-1][0][0], self.kalman_xList[-1][1][0]]
+        flowRatio = self.kalman_xList[-1][2][0]
+        lambda1 = 2.8235 * self.catchmentArea**0.24
+        lambda2 = 0.2835 * meanRainfall**(-0.2648)
+        k11 = lambda1 * self.kalman_xList[-1][3][0]
+        k12 = lambda1**2 * lambda2 * self.kalman_xList[-1][3][0]**2
         sol.set_initial_value(y=y0, t=t0)
-        timestamp = obsDateTime + gridTime
-        sysError = 0.1
-        kalman_u = np.array([[1]*self.dim_z]).T
+        timestamp = self.obsDateTime + gridTime
+        # sysError = 0.1
+        # kalman_u = np.array([[1]*self.dim_z]).T
         while timestamp <= forecastDateTime:
-            lambda1 = 2.8235 * self.catchmentArea**0.24
-            lambda2 = 0.2835 * meanRainfall**(-0.2648)
-            k11 = lambda1 * self.kalman_xList[-1][3][0]
-            k12 = lambda1**2 * lambda2 * self.kalman_xList[-1][3][0]**2
             rainfall = rainfallGPVDF.loc[timestamp, "rainfall"] * flowRatio
             sol.set_f_params(k11, k12, self.p1, self.p2, rainfall)
             integrateResultList = sol.integrate(sol.t+dt)
@@ -316,7 +338,7 @@ class KalmanCalculator:
             errorFlowRate = np.nan
             self.outputList.append([timestamp, flowRate, 
                                     rainfallGPVDF.loc[timestamp, "rainfall"],
-                                    errorFlowRate])
+                                    errorFlowRate, storageHeight])
             timestamp += gridTime
 
     """

@@ -37,6 +37,7 @@ if __name__ == '__main__':
     allDataDF = pd.DataFrame()
     dataReader = DataReader(allDataDF)
     cal_settings = dataReader.getCalSettings()
+    prediction = cal_settings["prediction"]
     dataReader.putTime(cal_settings["startTime"],
                        cal_settings["endTime"],
                        cal_settings["timeInterval"],
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     # 流出計算
     # ----------------------------------------
     if cal_settings["used_algorithm"] == "kalmanFilter":
-        kalmanCalculator = KalmanCalculator(cal_settings)
+        kalmanCalculator = KalmanCalculator(cal_settings, catchmentArea)
         kalman_settings = dataReader.getKalmanSettings()
         kalmanCalculator.setReadOnlyData(allDataDF, catchmentArea, kalman_settings,
                                          baseFlowRate, flowRatio)
@@ -157,21 +158,22 @@ if __name__ == '__main__':
             # 水位計算(HQ 式の適用範囲に注意)
             # ----------------------------------------
             outputDF.loc[(outputDF["flow rate"] >= HQParams[0]["Q_min"]) & \
-                         (outputDF["flow rate"] < HQParams[0]["Q_max"]), "water level"] =\
+                         (outputDF["flow rate"] < HQParams[0]["Q_max"]), "water level(cal)"] = \
                           HQParams[0]["b"] + (outputDF["flow rate"]/HQParams[0]["a"])**0.5
             outputDF.loc[(outputDF["flow rate"] >= HQParams[0]["Q_max"]) & \
-                         (outputDF["flow rate"] < HQParams[1]["Q_max"]), "water level"] =\
+                         (outputDF["flow rate"] < HQParams[1]["Q_max"]), "water level(cal)"] =\
                           HQParams[1]["b"] + (outputDF["flow rate"]/HQParams[1]["a"])**0.5
             outputDF.loc[(outputDF["flow rate"] >= HQParams[1]["Q_max"]) &\
-                         (outputDF["flow rate"] < HQParams[2]["Q_max"]), "water level"] =\
+                         (outputDF["flow rate"] < HQParams[2]["Q_max"]), "water level(cal)"] =\
                           HQParams[2]["b"] + (outputDF["flow rate"]/HQParams[2]["a"])**0.5
-            outputDF.loc[outputDF["flow rate"] > HQParams[2]["Q_max"], "water level"] = np.nan
-            allDataDF["water level(cal)"] = outputDF["water level"]
+            outputDF.loc[outputDF["flow rate"] > HQParams[2]["Q_max"], "water level(cal)"] = np.nan
+            # allDataDF["water level(cal)"] = outputDF["water level"]
+            allDataDF = pd.concat([allDataDF, outputDF["water level(cal)"]], axis=1)
         allDataDF = pd.concat([allDataDF, outputDF["storage height"]], axis=1)
         allDataDF["flow rate(cal)"] = outputDF["flow rate"]
         if cal_settings["used_algorithm"] == "kalmanFilter":
             allDataDF["flow rate error"] = outputDF["flow rate error"]
-            allDataDF["rainfall"] = outputDF["rainfall"]
+            allDataDF["rainfall(fs)"] = outputDF["rainfall"]
         return allDataDF
 
     outputFilePath = dataReader.getOutputFilePath()
@@ -199,8 +201,11 @@ if __name__ == '__main__':
     # 図の出力
     # ----------------------------------------
     graphMaker = GraphMaker(allDataDF)
-    endTime = cal_settings["endTime"] + \
-              datetime.timedelta(hours=int(cal_settings["forecastTime"]))
+    if prediction:
+        endTime = cal_settings["obsDateTime"] + \
+                  datetime.timedelta(hours=int(cal_settings["forecastTime"]))
+    else:
+        endTime = cal_settings["endTime"]
     if cal_settings["used_algorithm"] == "de":
         if cal_settings["used_flowModel"] == "classicOneValueStorageFunc":
             savePath = outputFilePath + \
@@ -215,11 +220,15 @@ if __name__ == '__main__':
             savePath = outputFilePath + "differential_evolution/tankModel/"
     elif cal_settings["used_algorithm"] == "kalmanFilter":
         savePath = outputFilePath + "kalmanFilter/"
-    xTickList = [cal_settings["startTime"], endTime, cal_settings["timescale"]]
+    xTickList = [cal_settings["startTime"], endTime, 
+                 cal_settings["timescale"]]
     xLabel = "Date"
 
     # flow rate - date
-    yNameList = ["flow rate(HQ)", "flow rate(cal)", "rainfall"]
+    if prediction:
+        yNameList = ["flow rate(HQ)", "flow rate(cal)", "rainfall(fs)"]
+    else:
+        yNameList = ["flow rate(HQ)", "flow rate(cal)", "rainfall"]
     if cal_settings["timescale"] == "hours" or "minutes":
         yLabelList = ["Flow rate (m$^3$/s)", "Rainfall (mm/hr)"]
     if cal_settings["timescale"] == "days":
@@ -228,25 +237,28 @@ if __name__ == '__main__':
         cal_settings["used_flowModel"] + "_" + \
         cal_settings["used_algorithm"] + "_" + \
         cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
-        cal_settings["endTime"].strftime("%Y%m%d%H%M") + "_" + \
+        endTime.strftime("%Y%m%d%H%M") + "_" + \
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FR.png"
     graphMaker.makeFlowRateGraph(yNameList, xTickList, xLabel, yLabelList)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     # water level - date
     if cal_settings["used_waterLevelData"]:
-        yNameList = ["water level(obs)", "water level(cal)", "rainfall"]
-        yLabelList = ["Water lebel (m)", "Rainfall (mm/hr)"]
+        if prediction:
+            yNameList = ["water level(obs)", "water level(cal)", "rainfall(fs)"]
+        else:
+            yNameList = ["water level(obs)", "water level(cal)", "rainfall"]
+        yLabelList = ["Water level (m)", "Rainfall (mm/hr)"]
         outputFileName = cal_settings["obsName"] + "_" + \
             cal_settings["used_flowModel"] + "_" + \
             cal_settings["used_algorithm"] + "_" + \
             cal_settings["startTime"].strftime("%Y%m%d%H%M") + "_" + \
-            cal_settings["endTime"].strftime("%Y%m%d%H%M") + "_" + \
+            endTime.strftime("%Y%m%d%H%M") + "_" + \
             cal_settings["timeInterval"] + \
             cal_settings["timescale"] + "_" + "WL.png"
         graphMaker.makeWaterLevelGraph(yNameList, xTickList, xLabel, yLabelList)
-        # graphMaker.save(outputFileName, savePath)
+        graphMaker.save(outputFileName, savePath)
 
     # flow rate - storage height
     xName = "flow rate(cal)"
@@ -261,7 +273,7 @@ if __name__ == '__main__':
         cal_settings["timeInterval"] + \
         cal_settings["timescale"] + "_" + "FS.png"
     graphMaker.makeFlow_StorageRelation(xName, yName, xLabel, yLabel)
-    # graphMaker.save(outputFileName, savePath)
+    graphMaker.save(outputFileName, savePath)
 
     elapsedTime = (datetime.datetime.now() - startCalTime).total_seconds()
     print(f"################################")
