@@ -53,7 +53,7 @@ class KalmanCalculator:
         self.catchmentArea = catchmentArea
         self.obsName = cal_settings["obsName"]
         self.obsDateTime = cal_settings["obsDateTime"]
-        self.prediction = cal_settings["prediction"]
+        self.forecast = cal_settings["forecast"]
         # self.floodStartTime = cal_settings["floodStartTime"]
         # self.floodEndTime = cal_settings["floodEndTime"]
         # self.rainfallStartTime = cal_settings["rainfallStartTime"]
@@ -265,7 +265,7 @@ class KalmanCalculator:
         # time = [i for i in range(len(kalman_xList))]
         # kalman_xList = np.array(kalman_xList).reshape(25, 5)
         # plt.plot(time, kalman_xList)
-        if self.prediction:
+        if self.forecast:
             dataReader_kal = DataReader()
             dataReader_kal.setInputFilePath()
             grib2_settings = dataReader_kal.getGrib2Params()

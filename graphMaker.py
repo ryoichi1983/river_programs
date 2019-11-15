@@ -39,7 +39,7 @@ class GraphMaker(object):
         ax.plot(self.allDataDF.index, self.allDataDF[yNameList[0]],
                 c="0.1", ls="-", lw=1)
         ax.plot(self.allDataDF.index, self.allDataDF[yNameList[1]],
-                c="0.1", ls="-.", lw=1)
+                c="0.1", ls="--", lw=1)
         ax.set_xlim([xTickList[0], xTickList[1]])
         if xTickList[2] == "hours":
             ax.set_ylim([0, 70])
@@ -54,7 +54,7 @@ class GraphMaker(object):
             ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
                     lw=0, width=0.01, color="0.8")
             ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
         elif xTickList[2] == "days":
             ax.set_ylim([0, 30])
             ax1.set_ylim([200, 0])
@@ -92,8 +92,8 @@ class GraphMaker(object):
             ax1.set_ylim([200, 0])
             ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[2]],
                     lw=0, width=0.01, color="0.8")
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=24))
         ax.set_xlabel(xLabel, size=9)
         ax.set_ylabel(yLabelList[0], size=9)
         ax1.set_xlabel(xLabel, size=9)
@@ -141,6 +141,34 @@ class GraphMaker(object):
                                         interval=500)
         ani.save("./results/output.gif", writer="imagemagick")
         plt.show()
+
+    def makeWLRFGraph(self, yNameList, xTickList, xLabel, yLabelList):
+        fig, ax = plt.subplots(figsize=(4.86, 3))
+        ax1 = ax.twinx()
+        ax.grid(True)
+        ax1.grid(False)
+        ax.plot(self.allDataDF.index, self.allDataDF[yNameList[0]],
+                c="0.1", ls="-", lw=1)
+        ax.set_xlim([xTickList[0], xTickList[1]])
+        if xTickList[2] == "hours":
+            ax.set_ylim([34, 38])
+            ax1.set_ylim([80, 0])
+            ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[1]],
+                    lw=0, width=0.04, color="0.8")
+        elif xTickList[2] == "minutes":
+            ax.set_ylim([34, 38])
+            ax1.set_ylim([160, 0])
+            ax1.bar(self.allDataDF.index, self.allDataDF[yNameList[1]],
+                    lw=0, width=0.01, color="0.8")
+        # ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d-%H"))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=6))
+        ax.set_xlabel(xLabel, size=9)
+        ax.set_ylabel(yLabelList[0], size=9)
+        ax1.set_xlabel(xLabel, size=9)
+        ax1.set_ylabel(yLabelList[1], size=9)
+        ax.tick_params(direction="in", labelsize=9)
+        ax1.tick_params(direction="in", labelsize=9)
 
 
 if __name__ == '__main__':

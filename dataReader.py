@@ -96,10 +96,11 @@ class DataReader(object):
                  "riverParameters", "obsDateTime"), "%Y/%m/%d %H:%M:%S"),
              }
 
-        if self.inifile.get("riverParameters", "prediction") == "True":
-            self.cal_settings["prediction"] = True
-        elif self.inifile.get("riverParameters", "prediction") == "None":
-            self.cal_settings["prediction"] = None
+        if self.inifile.get("riverParameters", "forecast") == "True":
+            self.cal_settings["forecast"] = True
+
+        elif self.inifile.get("riverParameters", "forecast") == "None":
+            self.cal_settings["forecast"] = None
 
         return self.cal_settings
 
@@ -172,7 +173,7 @@ class DataReader(object):
              }
         return kalman_settings
 
-    def getTankParams(self):
+    def get_params(self, used_flowModel):
         """
         method for getting data about the tank model parameters recommended
         by Meteorological Agency
@@ -180,37 +181,64 @@ class DataReader(object):
         Input
         ----
         """
-        return \
-            {
-            # 第 1 タンクの下部横孔の流出係数(hr^-1)
-            "alpha1": float(self.inifile.get("tankParameters", "alpha1")),
-            # 第 1 タンクの上部横孔の流出係数(hr^-1)
-            "alpha2": float(self.inifile.get("tankParameters", "alpha2")),
-            # 第 2 タンクの横孔の流出係数(hr^-1)
-            "alpha3": float(self.inifile.get("tankParameters", "alpha3")),
-            # 第 3 タンクの横孔の流出係数(hr^-1)
-            "alpha4": float(self.inifile.get("tankParameters", "alpha4")),
-            # 第 1 タンクの下孔の浸透係数(hr^-1)
-            "beta1": float(self.inifile.get("tankParameters", "beta1")),
-            # 第 1 タンクの下孔の浸透係数(hr^-1)
-            "beta2": float(self.inifile.get("tankParameters", "beta2")),
-            # 第 2 タンクの下孔の浸透係数(hr^-1)
-            "beta3": float(self.inifile.get("tankParameters", "beta3")),
-            # 第 1 タンクの下部横孔の高さ(mm)
-            "height1": float(self.inifile.get("tankParameters", "height1")),
-            # 第 1 タンクの上部横孔の高さ(mm)
-            "height2": float(self.inifile.get("tankParameters", "height2")),
-            # 第 2 タンクの横孔の高さ(mm)
-            "height3": float(self.inifile.get("tankParameters", "height3")),
-            # 第 3 タンクの横孔の高さ(mm)
-            "height4": float(self.inifile.get("tankParameters", "height4")),
-            # 第 1 タンクの初期貯留高(mm)
-            "storage1": float(self.inifile.get("tankParameters", "storage1")),
-            # 第 2 タンクの初期貯留高(mm)
-            "storage2": float(self.inifile.get("tankParameters", "storage2")),
-            # 第 3 タンクの初期貯留高(mm)
-            "storage3": float(self.inifile.get("tankParameters", "storage3")),
+        if used_flowModel == "tankModel":
+            params = {
+                # 第 1 タンクの下部横孔の流出係数(hr^-1)
+                "alpha1": float(self.inifile.get("tankParameters", "alpha1")),
+                # 第 1 タンクの上部横孔の流出係数(hr^-1)
+                "alpha2": float(self.inifile.get("tankParameters", "alpha2")),
+                # 第 2 タンクの横孔の流出係数(hr^-1)
+                "alpha3": float(self.inifile.get("tankParameters", "alpha3")),
+                # 第 3 タンクの横孔の流出係数(hr^-1)
+                "alpha4": float(self.inifile.get("tankParameters", "alpha4")),
+                # 第 1 タンクの下孔の浸透係数(hr^-1)
+                "beta1": float(self.inifile.get("tankParameters", "beta1")),
+                # 第 1 タンクの下孔の浸透係数(hr^-1)
+                "beta2": float(self.inifile.get("tankParameters", "beta2")),
+                # 第 2 タンクの下孔の浸透係数(hr^-1)
+                "beta3": float(self.inifile.get("tankParameters", "beta3")),
+                # 第 1 タンクの下部横孔の高さ(mm)
+                "height1": float(self.inifile.get("tankParameters", "height1")),
+                # 第 1 タンクの上部横孔の高さ(mm)
+                "height2": float(self.inifile.get("tankParameters", "height2")),
+                # 第 2 タンクの横孔の高さ(mm)
+                "height3": float(self.inifile.get("tankParameters", "height3")),
+                # 第 3 タンクの横孔の高さ(mm)
+                "height4": float(self.inifile.get("tankParameters", "height4")),
+                # 第 1 タンクの初期貯留高(mm)
+                "storage1": float(self.inifile.get("tankParameters", "storage1")),
+                # 第 2 タンクの初期貯留高(mm)
+                "storage2": float(self.inifile.get("tankParameters", "storage2")),
+                # 第 3 タンクの初期貯留高(mm)
+                "storage3": float(self.inifile.get("tankParameters", "storage3")),
             }
+
+        elif used_flowModel == "classicOneValueStorageFunc":
+            params = \
+                     {"a": float(9.74),
+                      "p": float(0.35),
+                     }
+
+        elif used_flowModel == "classicTwoValueStorageFunc":
+            params = \
+                     {"a": float(9.91),
+                      "b": float(0.18),
+                      "m": float(0.38),
+                      "n": float(0.00305305),
+                     }
+
+        elif used_flowModel == "twoStepTwoValueStorageFunc":
+            params = \
+                     {"k11": float(3.04),
+                      "k12": float(9.53),
+                      "k13": float(1.00),
+                      "k21": float(134.79),
+                      "k22": float(19.69),
+                      "p1": float(0.52),
+                      "p2": float(0.10),
+                     }
+
+        return list(params.values())
 
     def getHQParams(self):
         """
@@ -335,11 +363,11 @@ class DataReader(object):
             self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
                                         join_axes=[self.allDataDF.index])
 
-        # 望月寒川の web データ (1 時間)
         elif used_rainfallData == "motsukisamu" and \
-             timeInterval+timescale == "1hours":
-            # データが格納された列番号(時間ごと)
-            dataColumnNo = [x for x in range(7, 31)]
+           timeInterval+timescale == "1hours":
+            """
+            # 望月寒川の web データ (1 時間)
+            dataColumnNo = [x for x in range(7, 31)]  # データが格納された列番号(時間ごと)
             inputFileName = self.inifile.get("inputFile", "rainfallFileName2")
             inputDF = pd.read_csv(path + inputFileName,
                                   encoding="shift-jis",
@@ -366,6 +394,22 @@ class DataReader(object):
             rainfallList = np.array(rainfallList).flatten()
             tmpSeries = pd.Series(rainfallList, index=dateList)
             self.allDataDF["rainfall"] = tmpSeries[startTime:endTime]
+            """
+            # 望月寒川の web データ (1 時間)
+            inputFileName = self.inifile.get("inputFile", "rainfallFileName7")
+            inputDF = pd.read_csv(path + inputFileName,
+                                  encoding="UTF-8",
+                                  skiprows=None,
+                                  header=None,
+                                  sep=",",
+                                  skipinitialspace=True,
+                                  usecols=[0, 1],
+                                  index_col=0)
+            inputDF = inputDF.apply(pd.to_numeric, args=('coerce',))
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF.columns = ["rainfall"]
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                       join_axes=[self.allDataDF.index])
 
         # 望月寒川の A ロガーデータ (10分)
         elif used_rainfallData == "motsukisamu" and \
@@ -470,9 +514,10 @@ class DataReader(object):
         """
         obsName = self.cal_settings["obsName"]
         path = self.inputFilePath + obsName + "/"
-        # 望月寒川の時刻水位月報 (1 時間)
-        if used_waterLevelData == "motsukisamu" and\
+        if used_waterLevelData == "motsukisamu" and \
            timeInterval+timescale == "1hours":
+            """
+            # 望月寒川の時刻水位月報 (1 時間)
             inputFileName = self.inifile.get("inputFile", "waterLevelFileName1")
             sheetList = ["201401", "201402", "201403", "201404", "201405",
                          "201406", "201407", "201408", "201409", "201410",
@@ -501,9 +546,21 @@ class DataReader(object):
             waterLevelList = np.array(waterLevelList).flatten()
             tmpSeries = pd.Series(waterLevelList, index=dateList)
             self.allDataDF["water level(obs)"] = tmpSeries[startTime:endTime]
-
+            """
+            # 望月寒川の web (1 時間)
+            inputFileName = self.inifile.get("inputFile", "waterLevelFileName4")
+            inputDF = pd.read_csv(path + inputFileName,
+                encoding=None, skiprows=None, header=None, sep=",",
+                skipinitialspace=True, usecols=[0, 1], index_col=0)
+            inputDF.index = pd.to_datetime(inputDF.index)
+            inputDF = inputDF.apply(pd.to_numeric, args=('coerce',))
+            inputDF.columns = ["water level(obs)"]
+            # self.allDataDF = pd.concat([self.allDataDF, inputDF/1000], axis=1)
+            self.allDataDF = pd.concat([self.allDataDF, inputDF], axis=1,
+                                       join_axes=[self.allDataDF.index])
+     
         # 望月寒川の A ロガーデータ (10分)
-        elif used_waterLevelData == "motsukisamu" and\
+        elif used_waterLevelData == "motsukisamu" and \
            timeInterval+timescale == "10minutes":
             inputFileName = self.inifile.get("inputFile", "waterLevelFileName2")
             inputDF = pd.read_csv(path + inputFileName,
