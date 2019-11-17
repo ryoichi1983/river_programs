@@ -202,7 +202,7 @@ class ParamOptimizer:
                     dt_sum = 0
                 sol.set_f_params(a, p, rainfall)
                 integrateResultList = sol.integrate(sol.t+dt)
-                print(timestamp, integrateResultList)
+                # print(timestamp, integrateResultList)
                 flowRate = (integrateResultList[0])**(1/p) * self.catchmentArea / 3.6 + \
                            self.baseFlowRate
                 storageHeight = a * integrateResultList[0]
@@ -212,7 +212,7 @@ class ParamOptimizer:
                 simulationList.append(flowRate)
                 evaluationList.append(self.readDataDF.loc[timestamp, "flow rate(HQ)"])
                 timestamp += gridTime
-            # print(len(simulationList), len(evaluationList))
+            # print(simulationList, evaluationList)
             return self.calculateObjfunction(simulationList, evaluationList)
             """
             if sol.successful():
@@ -346,10 +346,10 @@ class ParamOptimizer:
                     # (0, 10), (0, 1000), (0, 1000), (0, 1000), (0, 1000)]
         elif self.used_flowModel == "classicOneValueStorageFunc":
             # return [(0, 300), (0, 1)]
-            return [(0, 20), (0, 1)]
+            return [(0, 100), (0, 1)]
         elif self.used_flowModel == "classicTwoValueStorageFunc":
             # return [(0, 100), (0, 100), (0, 1), (0, 1)]
-            return [(0, 20), (0, 20), (0, 10), (0, 10)]
+            return [(0, 100), (0, 100), (0, 1), (0, 1)]
         elif self.used_flowModel == "twoStepTwoValueStorageFunc":
             return [(0, 20), (0, 20), (0, 20), (0, 140), (0, 20), (0, 1), (0, 1)]
 

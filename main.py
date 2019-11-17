@@ -168,10 +168,10 @@ if __name__ == '__main__':
                          (outputDF["flow rate"] < HQParams[0]["Q_max"]), "water level(cal)"] = \
                           HQParams[0]["b"] + (outputDF["flow rate"]/HQParams[0]["a"])**0.5
             outputDF.loc[(outputDF["flow rate"] >= HQParams[0]["Q_max"]) & \
-                         (outputDF["flow rate"] < HQParams[1]["Q_max"]), "water level(cal)"] =\
+                         (outputDF["flow rate"] < HQParams[1]["Q_max"]), "water level(cal)"] = \
                           HQParams[1]["b"] + (outputDF["flow rate"]/HQParams[1]["a"])**0.5
-            outputDF.loc[(outputDF["flow rate"] >= HQParams[1]["Q_max"]) &\
-                         (outputDF["flow rate"] < HQParams[2]["Q_max"]), "water level(cal)"] =\
+            outputDF.loc[(outputDF["flow rate"] >= HQParams[1]["Q_max"]) & \
+                         (outputDF["flow rate"] < HQParams[2]["Q_max"]), "water level(cal)"] = \
                           HQParams[2]["b"] + (outputDF["flow rate"]/HQParams[2]["a"])**0.5
             outputDF.loc[outputDF["flow rate"] > HQParams[2]["Q_max"], "water level(cal)"] = np.nan
             # allDataDF["water level(cal)"] = outputDF["water level"]
@@ -184,7 +184,8 @@ if __name__ == '__main__':
         return allDataDF
 
     outputFilePath = dataReader.getOutputFilePath()
-    if cal_settings["used_algorithm"] == "de" or "prediction":
+    if cal_settings["used_algorithm"] == "de" or \
+       cal_settings["used_algorithm"] == "prediction":
         outputList = paramOptimizer.getOutputData()
         if cal_settings["used_flowModel"] == "tankModel":
             headerList = ["storage height", "tn1", "tn2", "tn3", "total flow height",

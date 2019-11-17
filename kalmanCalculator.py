@@ -46,13 +46,14 @@ class KalmanCalculator:
         self.used_algorithm = cal_settings["used_algorithm"]
         self.used_flowModel = cal_settings["used_flowModel"]
         self.startTime = cal_settings["startTime"]
-        self.endTime = cal_settings["endTime"]
+        # self.endTime = cal_settings["endTime"]
         self.timescale = cal_settings["timescale"]
         self.timeInterval = cal_settings["timeInterval"]
         self.forecastTime = cal_settings["forecastTime"]
         self.catchmentArea = catchmentArea
         self.obsName = cal_settings["obsName"]
-        self.obsDateTime = cal_settings["obsDateTime"]
+        # self.obsDateTime = cal_settings["obsDateTime"]
+        self.obsDateTime = cal_settings["endTime"]
         self.forecast = cal_settings["forecast"]
         # self.floodStartTime = cal_settings["floodStartTime"]
         # self.floodEndTime = cal_settings["floodEndTime"]
@@ -177,14 +178,15 @@ class KalmanCalculator:
         #     self.readOnlyDataDF.loc[timestamp, "flow rate(HQ)"]**self.p2 + 10**-10]]
         measurableList = [[
             (self.readOnlyDataDF.loc[timestamp, "flow rate(HQ)"] + 10**-10)**self.p2,
-            rainfallList[0] + 10**-10]]
+            rainfallList[0]]]
         # 状態変数の初期値
         # ----------------------------------------
         kalman.x[0][0] = measurableList[0][0]
         kalman.x[1][0] = 10**-10
-        kalman.x[2][0] = 0.9
+        kalman.x[2][0] = 1.0
+        # kalman.x[3][0] = 2.27
         kalman.x[3][0] = 1.56
-        kalman.x[4][0] = rainfallList[0] + 10**-10
+        kalman.x[4][0] = measurableList[0][1]
         # kalman.x[4][0] = measurableList[0][1]
         self.kalman_xList = [kalman.x]
         # システム誤差の係数
@@ -204,11 +206,14 @@ class KalmanCalculator:
         # システム誤差の分散・共分散 (乗算ノイズ)
         # 誤差が小さいとカルマンゲインが小さくなり変数の値がほとんど更新しなくなる。
         kalman_Q = np.array(
-            [[0.01, 0, 0, 0, 0],
-             [0, 0.01, 0, 0, 0],
-             [0, 0, 0.01, 0, 0],
-             [0, 0, 0, 0.01, 0],
-             [0, 0, 0, 0, 0.01]])
+            [[0.1, 0, 0, 0, 0],
+             [0, 0.1, 0, 0, 0],
+             [0, 0, 0.1, 0, 0],
+             [0, 0, 0, 0.1, 0],
+             [0, 0, 0, 0, 0.1]])
+        # 観測行列
+        # kalman_H = np.array([[1, 0, 0, 0, 0]])
+        kalman_H = np.array([[1, 0, 0, 0, 0], [0, 0, 0, 0, 1]])
 
         # カルマンフィルタ計算
         # ----------------------------------------
@@ -224,9 +229,6 @@ class KalmanCalculator:
             # obsError = sqrt(self.p2 * (self.readOnlyDataDF.loc[timestamp, "flow rate(HQ)"] +
             #                            10**-10)**(self.p2 - 1) * 1.1)
             obsError = 0.1
-            # 観測行列
-            # kalman_H = np.array([[1, 0, 0, 0, 0]])
-            kalman_H = np.array([[1, 0, 0, 0, 0], [0, 0, 0, 0, 1]])
             kalman.predict(B=kalman_B, u=kalman_u, F=kalman_F, Q=kalman_Q)
             timestamp += gridTime
             gridTime = self.readOnlyDataDF.loc[timestamp, "grid time"]  # timedelta 型
@@ -239,7 +241,6 @@ class KalmanCalculator:
                     self.readOnlyDataDF.loc[timestamp, "flow rate(HQ)"]**self.p2 +
                     10**-10, rainfallList[-1] + 10**-10])
             # 観測ノイズの分散・共分散
-            # kalman_R = np.array([[obsError * self.kalman_xList[-1][0][0]]])
             kalman_R = np.array([[obsError * self.kalman_xList[-1][0][0], 0],
                                  [0, obsError * self.kalman_xList[-1][4][0]]])
             kalman.update(z=measurableList[-1], R=kalman_R, H=kalman_H)  # 更新(z=[[None]])
@@ -255,9 +256,9 @@ class KalmanCalculator:
                      [0, 0, 0, (self.kalman_xList[-1][3][0] * sysError)**2, 0],
                      [0, 0, 0, 0, (self.kalman_xList[-1][4][0] * sysError)**2]])
             flowRate = self.kalman_xList[-1][0][0]**(1/self.p2)
-            errorFlowRate = self.catchmentArea / 3.6 / self.p2 * \
-                self.kalman_xList[-1][0][0]**(1/self.p2 - 1) * \
-                self.kalman_PList[0][0][0]**0.5 + self.baseFlowRate
+            errorFlowRate = (self.catchmentArea / 3.6 / self.p2 * \
+                self.kalman_xList[-1][0][0]**(1/self.p2 - 1))**2 * \
+                self.kalman_PList[0][0][0]**0.5
             # sigma_WL = sigma_flow / (4 * flowRate)  要修正
             storageHeight = k11 * flowRate**self.p1 + k12 * self.kalman_xList[-1][1][0]
             self.outputList.append([timestamp, flowRate, rainfallList[-1], 
